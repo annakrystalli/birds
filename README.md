@@ -1,7 +1,7 @@
 # birds
 Compilation of master data set for analysis of evolution of sex roles in birds
 
-##Script details
+##File details
 
 ####Data match.R
 Master compilation workflow
