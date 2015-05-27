@@ -1,0 +1,191 @@
+---
+title: "Report 1 - Data Availability"
+author: "Anna Krystalli"
+date: "24 December 2014"
+output: word_document
+---
+
+So far all mating system data, supplied by Andras and Gavin, as well as additional ecological etc data supplied by Tamas and the clutch size data published in the PLOS paper (DOI: 10.1371/journal.pbio.0060303) have been compiled onto the master data set. 
+
+Details of the datasets can be found on the data log on the project dropbox folder: 
+https://docs.google.com/spreadsheets/d/1xIp9pmQbqIx_ZuQlTC609TI6oQLWb6vZ0NumA5oYZp4/edit?usp=sharing
+
+The raw data can be found here:
+https://drive.google.com/folderview?id=0B9BMeZ9H2nRxOElvUk1mZzA1clU&usp=sharing
+
+The up to date master spreadshet can always be found here:
+https://drive.google.com/file/d/0B9BMeZ9H2nRxa3VOSXF3V2tCLTg/view?usp=sharing
+
+while descriptions of variables including details of scoring can be found here:
+https://drive.google.com/file/d/0B9BMeZ9H2nRxeFlHamhfalBWZjA/view?usp=sharing
+
+So far, collation has resulted in a total of 142,461 datapoints spread over 146 variables. 45 variables are related to data quality control (confidence), references and data sources leaving a total of 101 variables for analysis of sex roles so far.
+
+Ornament data are yet to be added as these still have significant gaps. Global distribution data have been applied for from BirdLife and these should be available soon (hopefully within the next few days although it may now be after the holidays). These will then be used to extract environmental data for each species range and determine mean and variance values for each. The Bioclim environmental data have been downloaded so we are now only awaiting the BirdLife data to continue.
+
+A more detailed report on the distribution of values across individual variables and repeatability of values across observers will follow shortly.
+
+
+```{r, echo=FALSE, fig.width = 3, fig.height = 7}
+rm(list=ls())
+
+#This function creates a color scale for use with the image()
+#function. Input parameters should be consistent with those
+#used in the corresponding image plot. The "axis.pos" argument
+#defines the side of the axis. The "add.axis" argument defines
+#whether the axis is added (default: TRUE)or not (FALSE).
+image.scale <- function(z, zlim, col = heat.colors(12),
+breaks, axis.pos=1, add.axis=TRUE, ...){
+ if(!missing(breaks)){
+  if(length(breaks) != (length(col)+1)){stop("must have one more break than colour")}
+ }
+ if(missing(breaks) & !missing(zlim)){
+  breaks <- seq(zlim[1], zlim[2], length.out=(length(col)+1)) 
+ }
+ if(missing(breaks) & missing(zlim)){
+  zlim <- range(z, na.rm=TRUE)
+  zlim[2] <- zlim[2]+c(zlim[2]-zlim[1])*(1E-3)#adds a bit to the range in both directions
+  zlim[1] <- zlim[1]-c(zlim[2]-zlim[1])*(1E-3)
+  breaks <- seq(zlim[1], zlim[2], length.out=(length(col)+1))
+ }
+ poly <- vector(mode="list", length(col))
+ for(i in seq(poly)){
+  poly[[i]] <- c(breaks[i], breaks[i+1], breaks[i+1], breaks[i])
+ }
+ if(axis.pos %in% c(1,3)){ylim<-c(0,1); xlim<-range(breaks)}
+ if(axis.pos %in% c(2,4)){ylim<-range(breaks); xlim<-c(0,1)}
+ plot(1,1,t="n",ylim=ylim, xlim=xlim, axes=FALSE, xlab="", ylab="", xaxs="i", yaxs="i", ...)  
+ for(i in seq(poly)){
+  if(axis.pos %in% c(1,3)){
+   polygon(poly[[i]], c(0,0,1,1), col=col[i], border=NA)
+  }
+  if(axis.pos %in% c(2,4)){
+   polygon(c(0,0,1,1), poly[[i]], col=col[i], border=NA)
+  }
+ }
+ box()
+ if(add.axis) {axis(axis.pos)}
+}
+
+
+master <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/Master Data Sheet.csv", stringsAsFactors=FALSE)
+
+var.rem.names <- c("family", "species", "location", "X", "index", "elliott.dat", "ms.dat", "aus_ind_birds", "d.mod_ref", "ref", "ref.D1", "ref.D2", "ref.D4", "ref.D3", "andras.dat")
+
+
+var.rem <- c(match(var.rem.names, names(master)), grep("_qc", names(master)), grep(".n_", names(master)))
+
+var.stat <-sort(colSums(!is.na(master[,-var.rem])))
+spp.stat <-sort(rowSums(!is.na(master[,-var.rem])))
+spp.stat.uns <-rowSums(!is.na(master[,-var.rem]))
+qc.stat <- sort(colSums(!is.na(master[,c(grep("_qc", names(master)), grep(".n_", names(master)))])))
+
+master.red <- !is.na(master[,-var.rem])
+
+top <-round(length(var.stat)/2)
+
+par(las = 1, mar = c(3,8,1,1))
+
+
+barplot(var.stat[(top+1):length(var.stat)], horiz = T, axes = T, cex.names = 0.8, xlim = c(0, max(var.stat)), main ="top sex role variables", cex.main = 0.8)
+
+barplot(var.stat[1:top], horiz = T, axes = T, cex.names = 0.8, xlim = c(0, max(var.stat)), main = "bottom sex role variables", cex.main = 0.8 )
+
+
+```
+
+
+Frequency distribution of number of datapoints available per variable. The majority of variables have less than 1000 datapoints (most < 200) with a second small peak of variables of 2000-3000 datapoints.
+
+```{r, echo=FALSE, fig.width = 5, fig.height = 4}
+hist(var.stat, breaks = 25, col = "black", border = "white", xlab = "number of available species datapoints", main = "")
+```
+
+
+For 2586 species there is currently no sex role variable data at all, with the maximum number of variables for an individual species being 56. The following plots show the frequency distribution of data availability across variables for individual species (top) and the proportion of data availability across species as a function of the number of variables for which data is available (bottom).
+
+
+```{r, echo=FALSE, fig.width = 4, fig.height = 3}
+hist(spp.stat, col = "black", border = "white", xlab = "number of variables for which data available", main = "")
+
+cum <- NULL
+for(i in unique(spp.stat)){
+  
+cum <- c(cum,(sum(spp.stat>=i)/9994))
+  
+}
+
+plot(cum ~ unique(spp.stat), type = "l", xlab = "number of variables for which data available", ylab = "proportion of species")
+
+```
+
+The top and bottom 20 species with respect to data availability are indicated below
+
+```{r, echo=FALSE}
+spp.stat.tab <- data.frame(species = master$species, variables = spp.stat.uns)[order(spp.stat.uns),]
+
+"top 20"
+spp.stat.tab[length(master$species):(length(master$species) - 20),]
+
+"bottom 20"
+spp.stat.tab[1:20,]
+
+```
+
+
+Distribution of available data across families. The first two figures show total number of datapoints across all variables available for each family. The last two image panels show a cross-tabulation of species-level variable data availability across families ie. the intensity of colour in each pixel indicates the number of species in a particular family that have data points across the number of variables indicated on the x axis. Red lines indicate the level below which families have zero data points.
+
+
+
+
+```{r, echo=FALSE, fig.width = 3.5, fig.height = 6.6}
+
+fam.stat <- sort(tapply(spp.stat.uns, INDEX = list(master$family), FUN = sum))
+top.fam <- 100:194
+bot.fam <- 1:99
+
+par(las = 1, mar = c(2,8,1,1))
+
+barplot(fam.stat[top.fam], horiz = T, axes = T, cex.names = 0.5, xlim = c(0, max(fam.stat)), main = "family level data availability", xlab = "total number of datapoints", cex.axis = 0.7, cex.main = 0.7)
+
+
+
+barplot(fam.stat[bot.fam], horiz = T, axes = T, cex.names = 0.5, xlim = c(0, max(fam.stat)), main = "family level data availability", xlab = "total number of datapoints", cex.axis = 0.7, cex.main = 0.7)
+abline(h=2, col="red")
+
+
+fam.tab.stat <- t(table(master$family, spp.stat.uns))
+fam.tab.stat <- fam.tab.stat[,names(fam.stat)]
+im.names <- dimnames(fam.tab.stat)
+
+
+
+
+x <- (1:nrow(fam.tab.stat))
+y <- (1:length(top.fam))
+
+#layout(matrix(1:2, ncol=1, nrow = 2), widths = 4, heights = c(10, 0.45))
+par(las = 1, mar = c(0,8,1,1), mgp = c(2, 0.1, 0))
+image(x, y, fam.tab.stat[,top.fam], xlab="",ylab="",srt=45, col = c("black",grey.colors(max(fam.tab.stat))), axes = FALSE, main = "", cex.main = 0.7, cex.lab =0.7)
+abline(v=1.5, col="red")
+
+axis(2, at = y, labels=im.names[[2]][top.fam],srt=45,tick=FALSE, cex.axis = 0.5)
+axis(3, at = x, labels=im.names[[1]],srt=45,tick=FALSE, cex.axis = 0.5)
+
+
+x <- (1:nrow(fam.tab.stat))
+y <- (1:length(bot.fam))
+
+#layout(matrix(1:2, ncol=1, nrow = 2), widths = 4, heights = c(10, 0.45))
+par(las = 1, mar = c(0,8,1,1), mgp = c(2, 0.1, 0))
+image(x, y, fam.tab.stat[,bot.fam], xlab="",ylab="",srt=45, col = c("black",grey.colors(max(fam.tab.stat))), axes = FALSE, main = "", cex.main = 0.7, cex.lab =0.7)
+abline(v=1.5, col="red")
+
+axis(2, at = y, labels=im.names[[2]][bot.fam],srt=45,tick=FALSE, cex.axis = 0.5)
+axis(3, at = x, labels=im.names[[1]],srt=45,tick=FALSE, cex.axis = 0.5)
+
+```
+```{r, echo=FALSE, fig.width = 0.8, fig.height = 4}
+par(las = 1, mar = c(3,2,0,1),  mgp = c(2, 0.5, 0))
+image.scale(z = 0:max(fam.tab.stat), zlim = c(0, max(fam.tab.stat)) , col = c("black",grey.colors(max(fam.tab.stat))), axis.pos=2, add.axis=TRUE,cex.lab = 0.7)
+

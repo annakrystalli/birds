@@ -102,27 +102,35 @@ addVarsToMaster <-  function(match.dat, master, overwrite = F, add.var){
   return(master)}
 
 
-ITISlookUpData <- function(){
+ITISlookUpData <- function(version=NULL){
   aves.names <- read.csv("r data/match data/Aves synonym data (ITIS).csv", stringsAsFactors=FALSE)
   aves.codes <- read.csv("r data/match data/spp code matches.csv", stringsAsFactors=FALSE)
   
-  main <- aves.names$species[match(aves.codes$Main, aves.names$code)]
-  synonym <- aves.names$species[match(aves.codes$Synonym, aves.names$code)]
+  species <- aves.names$species[match(aves.codes$Main, aves.names$code)]
+  synonyms <- aves.names$species[match(aves.codes$Synonym, aves.names$code)]
   
-  itis.match <- data.frame(main, synonym)
+  itis.match <- data.frame(species, synonyms, stringsAsFactors = F)
   itis.match <- itis.match[complete.cases(itis.match),]
+  
+  if(version == 2){names(itis.match) <- c("synonyms", "species")}
   
   return(itis.match)}
 
 
-matchMetrics <- function(data, master, itis.match, unmatched, unmatched1, unmatched2){
+
+
+matchMetrics <- function(data, master, match.lengths){
   n <- min(nrow(master), nrow(data))
   print(paste("total data set:", length(data$species)))
-  print(paste("total matched:", n - length(unmatched)))            
-  print(paste("total unmatched:", length(unmatched)))                        
+  print(paste("total matched:", n - match.lengths["unmatched"]))            
+  print(paste("total unmatched:", match.lengths["unmatched"]))                       
   print(paste("total ITIS matches:", 
-              length(unmatched)-length(unmatched1)))
-  print(paste("manual matches:", length(unmatched2)))}
+              match.lengths["unmatched"] - match.lengths["unmatched1"]))
+  print(paste("total Birdlife:", 
+              match.lengths["unmatched1"] - match.lengths["unmatched2"]))
+  print(paste("total master.match:", 
+              match.lengths["unmatched2"] - match.lengths["unmatched3"]))
+  print(paste("manual matches:", match.lengths["unmatched3"]))}
 
 
 dataSppMatch <- function(data.list, data.ID = "D5", master){
@@ -385,7 +393,7 @@ birdlifeSppMatch <- function(data.list, data.ID = "D13", master){
 
 addVars <- function(data, master){
   
-  vars <- names(data)[names(data) != "species"]
+  vars <- names(data)[!(names(data) %in% c("species", "synonyms", "data.status"))]
   
   for(var in vars){
     if(is.character(data[,var])){data[,var][data[,var]==""] <- NA}
@@ -424,14 +432,26 @@ BS.varnames <- as.vector(read.table("r data/BS varnames.csv", quote="\"")[,"V1"]
 #Set species names as rownames
 
 master <- data.frame(matrix(NA, ncol= length(BS.varnames), nrow = dim(D3)[1]))
-master[,1:3] <-D3[,1:3]
 names(master) <-BS.varnames
+master[,match(names(D3[1:3]), names(master))] <-D3[,1:3]
+master$subspp <- FALSE
+
 rownames(master) <- as.character(master$species)
 
 
 #__________________________________________________________________________________________________________________
 #MATCH MS
 #__________________________________________________________________________________________________________________
+
+# Set folders
+output.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Outputs/"
+
+# Read in match params for individual dataset matches
+FUN.params <- c("data.match", "match")
+
+for(FUN.param in FUN.params){
+assign(paste(FUN.param, "params", sep ="."), read.csv(paste("r data/params/",FUN.param," params.csv", sep = ""),
+         stringsAsFactors=FALSE))}
 
 #Open files
 
@@ -475,23 +495,23 @@ for(i in c(1, 5:(length(BS.varnames)-1))){
   }}
 
 
-#Add subspp columns
-master$subspp <- 0
-master$parent.spp <- NA
-
 
 
 #__________________________________________________________________________________________________________________
 #MATCH Clutch Size (D5)
 #__________________________________________________________________________________________________________________
 
+output <- list(master = master)
+names(data.list)[-(1:4)]
 
+for(i in 1:8){
+  
 # Add D5.....................................................................
-output <- dataSppMatch(data.list, data.ID = "D5", master)
-data <- output$data
-master <- output$master
-master <- addVars(data, master)
+output <- dataSppMatch(data.list, data.ID = data.match.params$data.ID[i], 
+                       master, sub = data.match.params$sub[i], match.params = match.params)
 
+output$master <- addVars(output$data, output$master)
+}
 
 # Add D6.....................................................................
 output <- dataSppMatch(data.list, data.ID = "D6", master)
@@ -573,7 +593,6 @@ testSynonym <- function(spp, data, data.ID){
   }
   
 }
-
 whichNext <- function(data.ID){
   
   mmatch <- read.csv(paste("r data/match data/",data.ID," mmatched.csv", sep = ""),
@@ -588,10 +607,8 @@ whichNext("D14")
 testSynonym("Alario alario", data, "D14")
 
 
-any("Sicalis_uropygialis" %in% data.list[[data.ID]]$species)
+any("Chrysococcyx_minutillus" %in% output$data$species)
 
-
-data[8005,]
 
 
 master$mpg_D9 <- master$mpg_D9/100  #change to prop for consistency
@@ -605,7 +622,7 @@ write.csv(master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/M
 #________________________________________________________________________________________________
 #.....MANUAL MATCH CODE
 ________________________________________________________________________________________________
-any("Nectarinia_neergaardi" %in% master$species)
+any("Amytornis_merrotsyi" %in% master$species)
 
 
 #________________________________________________________________________________________________
