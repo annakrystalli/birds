@@ -1,4 +1,3 @@
-
 require("rgeos")
 require("rgdal")
 require("sp")
@@ -32,14 +31,13 @@ fixholesF = function(sp.obj) {
 }
 fixholes <- cmpfun(fixholesF)
 
-#Latidutinal weighted correction of polygon regions
 latWts <- function(lats, e){cell <- e@grid@cellsize[1]
                             
                             l <- cos((lats-cell/2)*pi/180)^2 *cos(cell*pi/180)
                             l0 <- cos(mean(lats-cell/2)*pi/180)^2 *cos(cell*pi/180)
                             l/l0}
 
-#Get overall area data
+
 areaDataTable<- function(xt){  
   data <- NULL
   a <- gArea(xt)/10^6
@@ -78,17 +76,23 @@ bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
   var.regions <- data.frame(mapply(e.dat, coo.wts, FUN = function(x, coo.wts){weighted.var(x, coo.wts)}))
   names(var.regions) <- paste(bio, "var", sep=".")
   
-  wts <- latWts(unlist(calc.dat), e)
-  var.all <- data.frame(rep(weighted.var(unlist(calc.dat), wts),  dim(var.regions)[1]))
+  wts <- latWts(unlist(coo.polys), e)
+  var.all <- data.frame(rep(weighted.var(unlist(e.dat), wts),  dim(var.regions)[1]))
   names(var.all) <- paste(bio, "varall", sep=".")
   
   if(bio == "alt"){ area <- gArea(fixholes(xt), byid  = T)/10^6
                     bio.dat <- data.frame(area, mean.regions, max.regions, min.regions, var.regions, var.all)}else{
-                      bio.dat <- data.frame(mean.regions, max.regions, min.regions, var.regions, var.all)}  
+                      bio.dat <- data.frame(mean.regions, max.regions, min.regions, var.regions, var.all)}
+  return(bio.dat)
 }
 bioDataTable <- cmpfun(bioDataTableF)
 
 getBioRowF <- function(x, bios){
+  
+  if(!paste(bios[1], "m", sep=".") %in% names(x@data)){
+  bio.dat.nm <- paste(rep(bios, each = 4), c(".m", ".max", ".min", ".var"), sep = "")
+  bio.dat <-data.frame(matrix(NA, ncol = length(bio.dat.nm), nrow=1))
+  names(bio.dat) <- bio.dat.nm}else{
   
   for(bio in bios){
     
@@ -103,7 +107,7 @@ getBioRowF <- function(x, bios){
                        names(dat) <- paste(bio, c(".m", ".max", ".min", ".var"), sep = "")
                        bio.dat <- data.frame(bio.dat, dat)
                      }
-  }
+  }}
   return(bio.dat)}
 getBioRow <- cmpfun(getBioRowF)
 
@@ -187,7 +191,7 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
     print(t1-t0)
   }else{load(file = paste(wd.output, "Matched Shapefiles/", spp,".Rdata", sep=""))}
   
-  
+
   # calculate range bio data
   bio.dat <- getBioRow(x, bios)
   

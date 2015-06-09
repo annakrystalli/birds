@@ -1,3 +1,108 @@
+#Label variable with dataset name
+labelVars <- function(dat, data.ID){
+  require(stringr)
+  names(dat)[names(dat) != "species"] <- paste(names(dat), data.ID, sep = "_")[names(dat) != "species"]
+  dat$species <- gsub(" ", "_", dat$species)
+  return(dat)
+}
+
+#Match datasets D1-4. Returns updated master. Allows halting of function if duplicate 
+#datapoints across datasets exist through the overwrite argument
+
+matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var = NULL){
+  
+  match.dat <- data.list[[data.id]]
+  
+  
+  if(!is.null(add.var)){
+    add.cols <- matrix(NA, ncol = length(add.var), nrow = dim(master)[1])
+    names(add.cols) <- add.var
+    master <- cbind(master, add.cols)
+  }
+  
+  #Make sure there are no empty cells and replace any with NA cells
+  match.dat[which(match.dat == "", arr.ind = T)] <- NA
+  
+  #make vector of match data variables and check that they match the master
+  match.vars <- names(match.dat[,4:length(match.dat)])
+  if(any(is.na(match.vars %in% names(master)))){stop("variable name mismatch")}
+  
+  #for(i in 1:length(match.vars)){
+  #if(sum(!is.na(as.numeric(match.dat[,match.vars[i]])))==0){}else{
+  # match.dat[,match.vars[i]] <- as.numeric(match.dat[,match.vars[i]])  
+  #}}
+  
+  
+  #find non NA values in match data. Match arr.indices to spp and variable names (for QA)
+  id <- which(!is.na(match.dat[,4:length(match.dat)]), arr.ind = T)
+  
+  spp <- as.character(match.dat[,"species"][id[, "row"]])
+  var <- match.vars[id[, "col"]]
+  
+  # Check that species names and variable names to be matched are consistent with master and
+  # there are no species duplicates
+  if(any(!(spp %in% master$species))){stop("species name mismatch")}
+  if(any(!(var %in% names(master)))){stop("variable name mismatch")}
+  if(anyDuplicated(match.dat$species) > 0){stop("duplicate species name in match data")}
+  
+  #Create match index for datapoints to be added
+  match.id  <- cbind(row = match(spp, master$species), 
+                     col = match(var, names(master)))
+  
+  #check to see if any data will be overwritten (ie duplicate datapoints across datasets)
+  check <- sum(!is.na(master[match.id]))
+  
+  #stop function if overwrite = F
+  if(!overwrite){
+    if(check > 0){errors <- cbind(as.character(master$species)[match.id[,1]][which(!is.na(master[match.id]), arr.ind = T)],
+                                  names(master)[match.id[,2]][which(!is.na(master[match.id]), arr.ind = T)])
+                  print(errors)
+                  write.csv(errors, file=paste("r data/Data overwrite error reports/", data.id,".csv", sep = ""), 
+                            row.names = F)
+                  print(unique(errors[,2]))
+                  stop("Function terminated. Data overwrite danger")}}
+  
+  #Notify of any data overwriting
+  print(paste( check, "datapoints overwritten"))
+  
+  #match data to master
+  master[match.id] <- match.dat[, 4:length(match.dat)][id]
+  #Update ref column  
+  names(master)[which(names(master) == "ref")] <- paste("ref.", data.id, sep = "")
+  master <- cbind(master, ref = NA)
+  return(master)}
+
+# Processes ITIS synonyms data into a species synonym dataset 
+ITISlookUpData <- function(version=NULL){
+  aves.names <- read.csv("r data/match data/Aves synonym data (ITIS).csv", stringsAsFactors=FALSE)
+  aves.codes <- read.csv("r data/match data/spp code matches.csv", stringsAsFactors=FALSE)
+  
+  species <- aves.names$species[match(aves.codes$Main, aves.names$code)]
+  synonyms <- aves.names$species[match(aves.codes$Synonym, aves.names$code)]
+  
+  itis.match <- data.frame(species, synonyms, stringsAsFactors = F)
+  itis.match <- itis.match[complete.cases(itis.match),]
+  
+  if(version == 2){names(itis.match) <- c("synonyms", "species")}
+  
+  return(itis.match)}
+
+# Outputs details of master species name match lookup
+matchMetrics <- function(data, master, match.lengths){
+  n <- min(nrow(master), nrow(data))
+  print(paste("total data set:", length(data$species)))
+  print(paste("total matched:", n - match.lengths["unmatched"]))            
+  print(paste("total unmatched:", match.lengths["unmatched"]))                       
+  print(paste("total ITIS matches:", 
+              match.lengths["unmatched"] - match.lengths["unmatched1"]))
+  print(paste("total Birdlife:", 
+              match.lengths["unmatched1"] - match.lengths["unmatched2"]))
+  print(paste("total master.match:", 
+              match.lengths["unmatched2"] - match.lengths["unmatched3"]))
+  print(paste("manual matches:", match.lengths["unmatched3"]))}
+
+
+
 
 #Look up unmantched vector of species. If vector contains unmatched data species, 
 #Prepares data for matching of species to master species name. Creates synonyms column to link back to original data and 
