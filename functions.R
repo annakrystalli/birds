@@ -1,8 +1,15 @@
+# Compile mating system data (D1-4 & D7-9)
+
+
+
 #Label variable with dataset name
-labelVars <- function(dat, data.ID){
+labelVars <- function(dat, data.ID, label = F){
   require(stringr)
-  names(dat)[names(dat) != "species"] <- paste(names(dat), data.ID, sep = "_")[names(dat) != "species"]
+  if(label){
+  names(dat)[names(dat) != "species"] <- paste(names(dat), data.ID, sep = "_")[names(dat) != "species"]}
   dat$species <- gsub(" ", "_", dat$species)
+  #dat <- rbind(dat, NA)
+  #dat[dim(dat)[1], "species"] <- "NoData"
   return(dat)
 }
 
@@ -11,7 +18,7 @@ labelVars <- function(dat, data.ID){
 
 matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var = NULL){
   
-  match.dat <- data.list[[data.id]]
+  dat <- data.list[[data.id]]
   
   
   if(!is.null(add.var)){
@@ -21,10 +28,11 @@ matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var =
   }
   
   #Make sure there are no empty cells and replace any with NA cells
-  match.dat[which(match.dat == "", arr.ind = T)] <- NA
+  dat[which(dat == "", arr.ind = T)] <- NA
   
   #make vector of match data variables and check that they match the master
-  match.vars <- names(match.dat[,4:length(match.dat)])
+  match.vars <- names(dat)[!names(dat) %in% names(master)[1:5]]
+  match.dat <- dat[, match.vars]
   if(any(is.na(match.vars %in% names(master)))){stop("variable name mismatch")}
   
   #for(i in 1:length(match.vars)){
@@ -34,9 +42,9 @@ matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var =
   
   
   #find non NA values in match data. Match arr.indices to spp and variable names (for QA)
-  id <- which(!is.na(match.dat[,4:length(match.dat)]), arr.ind = T)
+  id <- which(!is.na(match.dat), arr.ind = T)
   
-  spp <- as.character(match.dat[,"species"][id[, "row"]])
+  spp <- as.character(dat[,"species"][id[, "row"]])
   var <- match.vars[id[, "col"]]
   
   # Check that species names and variable names to be matched are consistent with master and
@@ -66,10 +74,8 @@ matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var =
   print(paste( check, "datapoints overwritten"))
   
   #match data to master
-  master[match.id] <- match.dat[, 4:length(match.dat)][id]
-  #Update ref column  
-  names(master)[which(names(master) == "ref")] <- paste("ref.", data.id, sep = "")
-  master <- cbind(master, ref = NA)
+  master[match.id] <- match.dat[id]
+
   return(master)}
 
 # Processes ITIS synonyms data into a species synonym dataset 
@@ -109,7 +115,7 @@ matchMetrics <- function(data, master, match.lengths){
 # and data status, used to indicate data has bee prepared but also whether state of data row is original or has been added.
 
 dataMatchPrep <- function(data){
-  if("data.status" %in%names(data)){
+  if("data.status" %in% names(data)){
     print("Data already prep-ed")
     return(data)
   }else{
@@ -230,6 +236,13 @@ dataSppMatch <- function(data.list, data.ID = "D13", master, sub = "data", match
   #Create match object
   m <- matchObj(master, data, data.ID, add = NULL, status = "unmatched")
   
+  # Load match data.....................................................................
+  itis1 <- ITISlookUpData(1)
+  itis2 <- ITISlookUpData(2)
+  birdlife  <- read.csv("r data/match data/birdlife synonyms.csv", stringsAsFactors=FALSE)
+  match.master <- read.csv("r data/match data/match master.csv", stringsAsFactors=FALSE)
+  
+  
   if(sub == "master"){
     set <- "data"
   }
@@ -240,13 +253,11 @@ dataSppMatch <- function(data.list, data.ID = "D13", master, sub = "data", match
   #unmatched
   unmatched <- get(sub)$species[!(get(sub)$species %in% get(set)$species)]
   
-  # Load match data.....................................................................
-  itis1 <- ITISlookUpData(1)
-  itis2 <- ITISlookUpData(2)
-  birdlife  <- read.csv("r data/match data/birdlife synonyms.csv", stringsAsFactors=FALSE)
-  match.master <- read.csv("r data/match data/match master.csv", stringsAsFactors=FALSE)
-  
-  
+  if(sub == "data"){
+    rm <- match.master$synonyms[match.master$synonyms %in% unmatched & match.master$species %in% c("Extinct", "New")]
+    data <- data[!(data$species %in% rm),]
+  }
+
   for(id in match.params$name){
 
     match <- match.params$match[match.params$name == id]
@@ -285,4 +296,22 @@ dataSppMatch <- function(data.list, data.ID = "D13", master, sub = "data", match
   return(m)}
 
 
-
+addVars <- function(data, master){
+  
+  vars <- names(data)[!(names(data) %in% c("species", "synonyms", "data.status"))]
+  
+  for(var in vars){
+    if(is.character(data[,var])){data[,var][data[,var]==""] <- NA}
+    add <- data.frame(spp = match(data$species, master$species), 
+                      dat = data[,var], stringsAsFactors = F)
+    add <- add[complete.cases(add),]
+    #if(!any(is.na(as.numeric(add$dat)))){add$dat <- as.numeric(add$dat)}
+    
+    var.col <- data.frame(rep(NA, dim(master)[1]))
+    var.col[add[,"spp"],] <- add[,"dat"]
+    
+    names(var.col)<- var
+    
+    master <- data.frame(master, var.col, stringsAsFactors = F)}
+  
+  return(master)}
