@@ -16,3 +16,33 @@ dd.master <- data.frame(dd.master, add)
 
 write.csv(dd.master, "data collection files/Luciana/master data sheet.csv", 
           row.names = F, na = "")
+
+#___________________________________________________________________________________
+
+#...Isolate added data..............................................................
+
+
+origin <- read.csv("data collection files/Luciana/csvs/original data sheet.csv", 
+                   stringsAsFactors = F, header = T)
+
+updated <- read.csv("data collection files/Luciana/csvs/Luciana data sheet.csv", 
+                    stringsAsFactors = F, header = T)
+
+origin[is.na(origin)] <- ""
+updated[is.na(updated)] <- ""
+
+added <- updated
+added[,3:dim(added)[2]] <- ""
+
+added[updated != origin[, names(updated)]] <- updated[updated != origin[, names(updated)]]
+    added[added == ""] <- NA
+    added <- added[which(rowSums(is.na(added[,3:dim(added)[2]])) < 39),]
+
+for(num.var in names(added)[!names(added) %in% c("ref", "species")]){
+  added[,num.var] <- as.numeric(added[,num.var])
+}
+
+
+write.csv(added, "data collection files/Luciana/csvs/Luciana added data.csv", 
+              row.names = F, na = "")
+    

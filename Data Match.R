@@ -33,11 +33,16 @@ D9 <- read.csv("standardised csv data/breeding_system_to_Anna_Gavin.csv", string
 D12 <- labelVars(read.csv("standardised csv data/Cockburn 2006_Appendix A resub.csv", stringsAsFactors=FALSE), "D12", label = F)
 D13 <- labelVars(read.csv("standardised csv data/BirdFuncDat.csv", stringsAsFactors=FALSE), "D13", label = F)
 
-#...Environmental vars....................... 
-D14 <- read.csv("standardised csv data/birdlife spp list.csv", stringsAsFactors=FALSE)
-D14 <- D14[!(duplicated(D14$species) & D14$status != "R"),]
+#...Environmental vars.......................
+
+D14 <- read.csv("standardised csv data/BioClim.csv",stringsAsFactors=FALSE)
+
+      #D14 <- read.csv("standardised csv data/birdlife spp list.csv", stringsAsFactors=FALSE)
+      #D14 <- D14[!(duplicated(D14$species) & D14$status != "R"),]
 
 D15 <- labelVars(read.csv("standardised csv data/global bird body masses - no subspp.csv", stringsAsFactors=FALSE), "D15", label = T)
+
+D16 <- labelVars(read.csv("standardised csv data/plumage.csv", stringsAsFactors=FALSE), "D15", label = F)
 
 
 #...Unresolved vars....................... 
@@ -47,7 +52,7 @@ D15 <- labelVars(read.csv("standardised csv data/global bird body masses - no su
 
 #Create data.list
 data.list <- list(D1 = D1, D2 = D2, D3 = D3, D4 = D4, D5 = D5, D6 = D6, D7 = D7, 
-                  D8 = D8, D9 = D9, D12 = D12, D13 = D13, D14 = D14, D15 = D15)
+                  D8 = D8, D9 = D9, D12 = D12, D13 = D13, D14 = D14, D15 = D15, D16 = D16)
 
 
 #__________________________________________________________________________________________________________________
@@ -138,7 +143,8 @@ for(i in which(sapply(output$master, FUN = class) == "character")){
     output$master[,i] <-  str_trim(output$master[,i], side = "both")}
    
 
-write.csv(output$master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master Data Sheet.csv")
+write.csv(output$master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master Data Sheet.csv",
+          row.names = F)
 
 
 
@@ -222,10 +228,10 @@ whichNext <- function(x = output, pm = data.match.params){
 
 
 whichNext(x = output, pm = data.match.params)
-testSynonym("Heliangelus spencei", x = output, pm = data.match.params)
+testSynonym("Aratinga acuticaudata", x = output, pm = data.match.params)
 
 
-any("Stizorhina_finschi" %in% output$data$species)
+any("Gallinula nesiotis" %in% output$data$species)
 
 
 

@@ -48,35 +48,14 @@ registerDoParallel(cl)
 
 
 
-#...500:1000....................................................................................
 
-#....Set start and end of processing
-min <- 500
-max <- 1000
+min <- 34
+max <- 36
 
-
-bird.dat.parallel <- foreach(x = bird.files[min:max], .combine = rbind,
-                             .inorder = F, .errorhandling = "remove") %dopar%{
-  require("rgeos")
-  require("rgdal")
-  require("sp")
-  require("maptools")
-  require("spatstat")
-  getSppRow(x, wd.bird, wd.env, wd.output, bios, input.folder)}
- 
-
-save(bird.dat.parallel, file = paste(wd.output, "bird.dat500-1000.Rdata",sep = ""))
-
-
-
-     
-     #____________________________________________________________________________
-     
-     
      
 #...1001:end............
           
-min <- 1001
+min <- 1
 max <- length(bird.files)
 
 bird.dat.parallel <- foreach(x = bird.files[min:max], .combine = rbind,
@@ -86,6 +65,7 @@ bird.dat.parallel <- foreach(x = bird.files[min:max], .combine = rbind,
                                require("sp")
                                require("maptools")
                                require("spatstat")
-                               getSppRow(x, wd.bird, wd.env, wd.output, bios, input.folder)}
+                               getSppRow(x, wd.bird, wd.env, wd.output, bios, 
+                                         input.folder, overwrite = T)}
 
-save(bird.dat.parallel, file = paste(wd.output, "bird.dat1001-end.Rdata",sep = ""))
+save(bird.dat.parallel, file = paste(wd.output, "bird.dat.Rdata",sep = ""))
