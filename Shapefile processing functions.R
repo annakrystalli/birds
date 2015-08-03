@@ -1,25 +1,3 @@
-require("rgeos")
-require("rgdal")
-require("sp")
-require("maptools")
-require("spatstat")
-require("data.table")
-require(stringr)
-require(ggplot2)
-library(scales)
-library(compiler)
-require(parallel)
-library(plyr)
-library(foreach)
-require(doParallel)
-
-
-
-
-#____________________________________________________________________________
-#.....FUNCTIONS
-
-#____________________________________________________________________________
 
 # Produces appropriate error message and saves error report if required
 processError <- function(type, spp, input.folder, check = NA, xt = NULL){

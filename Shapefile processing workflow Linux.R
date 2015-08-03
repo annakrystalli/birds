@@ -1,21 +1,33 @@
 rm(list=ls())
 
+#____________________________________________________________________________
+#.....DEPENDENCIES
+
+# define dependencies
+depend <- c("rgeos", "rgdal","sp","maptools", "spatstat",
+            "data.table", "stringr", "ggplot2", "scales",
+            "compiler", "parallel", "plyr", "foreach", 
+            "doParallel")
+
+
+# install dependencies
+install.packages(depend)
+
+# load dependencies
+lapply(depend, require, character.only = TRUE)
 
 #____________________________________________________________________________
-#.....Functions
-
-#____________________________________________________________________________
+#.....FUNCTIONS
 
 
-source("~/Documents/Anna/Range Match Data/Shapefile processing functions.R")
+source("~/Documents/scripts/Shapefile processing functions.R")
 
 #____________________________________________________________________________
 #.....SETTINGS
 
-#____________________________________________________________________________
 options(stringsAsFactors = F)
 eres <- 10
-input.folder <- "~/Documents/Anna/Range Match Data/"
+input.folder <- "~/Documents/Range Match Data/"
 bird.folder <- "BirdLife Data/Shapefiles/"
 env.folder <-paste("BioCLIM Data/bil",eres,"/", sep="")
 output.folder <- "Output/"
