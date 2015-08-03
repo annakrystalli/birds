@@ -21,7 +21,10 @@ require(doParallel)
 
 #____________________________________________________________________________
 
+# Produces appropriate error message and saves error report if required
 processError <- function(type, spp, input.folder, check = NA, xt = NULL){
+  
+  dir.create(path = paste(input.folder, "Output/error reports/", sep = ""), showWarnings = F)
   
   err.df <- data.frame(data = 1:4, error = c("no presence",
                                              "no polys",
@@ -43,7 +46,7 @@ processError <- function(type, spp, input.folder, check = NA, xt = NULL){
                              spp, ".csv", sep = ""), row.names = F)}
 
 
-
+# fixholes in Spatial Polygon (SP) object
 fixholesF = function(sp.obj) {
   require(rgeos)
   require(stringr)
@@ -55,6 +58,8 @@ fixholesF = function(sp.obj) {
 }
 fixholes <- cmpfun(fixholesF)
 
+# Calculate latitudinal weights for environmental variables. Used to correct
+# calculation of region wide statistics
 latWts <- function(lats, e){cell <- e@grid@cellsize[1]
                             
                             l <- cos((lats-cell/2)*pi/180)^2 *cos(cell*pi/180)
@@ -62,6 +67,8 @@ latWts <- function(lats, e){cell <- e@grid@cellsize[1]
                             l/l0}
 
 
+# Calculate total area of range and proportion of range utilised under
+# seasonal occupancies 1-4. Compiles into range.dat dataframe
 areaDataTable<- function(xt){  
   data <- NULL
   a <- gArea(xt)/10^6
@@ -78,7 +85,9 @@ areaDataTable<- function(xt){
   colnames(data) <- c('area', paste("area.s", 1:4, sep = ""))
   return(data)}
 
-
+# Calculates area and latitudinally corrected mean, min, max and variance of bioclim
+# variable (bio) for each polygon region (each row of x@data). Creates data frame of single 
+# bio column and rows equal to the data table of the SP file.
 bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
   
   
@@ -111,6 +120,8 @@ bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
 }
 bioDataTable <- cmpfun(bioDataTableF)
 
+# Compiles the polygon region level bioclim data in processed SP file to 
+# range wide statistics
 getBioRowF <- function(x, bios){
   
   if(!paste(bios[1], "m", sep=".") %in% names(x@data)){
@@ -134,6 +145,8 @@ getBioRowF <- function(x, bios){
   }}
   return(bio.dat)}
 getBioRow <- cmpfun(getBioRowF)
+
+
 
 getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios, 
                        input.folder = input.folder, overwrite = F){
