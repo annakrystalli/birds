@@ -42,7 +42,7 @@ D14 <- read.csv("standardised csv data/BioClim.csv",stringsAsFactors=FALSE)
 
 D15 <- labelVars(read.csv("standardised csv data/global bird body masses - no subspp.csv", stringsAsFactors=FALSE), "D15", label = T)
 
-D16 <- labelVars(read.csv("standardised csv data/plumage.csv", stringsAsFactors=FALSE), "D15", label = F)
+D16 <- labelVars(read.csv("standardised csv data/plumage.csv", stringsAsFactors=FALSE), "D16", label = F)
 
 
 #...Unresolved vars....................... 
