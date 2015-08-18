@@ -65,7 +65,7 @@ data.list <- list(D1 = D1, D2 = D2, D3 = D3, D4 = D4, D5 = D5, D6 = D6, D7 = D7,
 #BS.varnames <- as.vector(read.table("r data/BS varnames.csv", quote="\"")[,"V1"])
 master.vnames <- unique(unlist(lapply(data.list[c(1:4, 7:9)], FUN=names)))
 master.vnames <- c(master.vnames[1:2], 
-                   "subspp", "parent.spp", 
+                   "subspp", "parent.spp", "order",
                    master.vnames[3:length(master.vnames)])
 
 master <- data.frame(matrix(NA, ncol= length(master.vnames), nrow = dim(D3)[1]))
@@ -74,6 +74,15 @@ master[,match(names(D3[1:3]), names(master))] <-D3[,1:3]
 master$subspp <- FALSE
 
 rownames(master) <- as.character(master$species)
+
+
+
+
+o2f <- unique(read.csv("standardised csv data/order_to_family.csv", stringsAsFactors = F))
+o2f[,1] <- paste(substr(o2f[,1], 1, 1), tolower(substr(o2f[,1], 2, nchar(o2f[,1]))), sep="")
+
+
+master$order <- o2f$order[match(master$family, o2f$family)]
 
 
 #__________________________________________________________________________________________________________________
