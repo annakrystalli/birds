@@ -181,6 +181,7 @@ sppMatch <- function(X, unmatched = unmatched, lookup.dat, sub = "master", statu
     add$subspp <- TRUE
     add$parent.spp <- master.add$species
     add$family  <- master$family[match(add$parent.spp, master$species)]
+    add$order  <- master$order[match(add$parent.spp, master$species)]
     
     #add to master
     master <- rbind(master, add)
