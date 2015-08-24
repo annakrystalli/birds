@@ -16,7 +16,8 @@ labelVars <- function(dat, data.ID, label = F){
 #Match datasets D1-4. Returns updated master. Allows halting of function if duplicate 
 #datapoints across datasets exist through the overwrite argument
 
-matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var = NULL){
+matchMSToMaster <-  function(data.list, data.id, master, overwrite = F, add.var = NULL, 
+                             taxo.var = taxo.var, var.omit = var.omit, input.folder){
   
   dat <- data.list[[data.id]]
   
@@ -31,7 +32,7 @@ matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var =
   dat[which(dat == "", arr.ind = T)] <- NA
   
   #make vector of match data variables and check that they match the master
-  match.vars <- names(dat)[!names(dat) %in% names(master)[1:5]]
+  match.vars <- names(dat)[!names(dat) %in% c(taxo.var, var.omit)]
   match.dat <- dat[, match.vars]
   if(any(is.na(match.vars %in% names(master)))){stop("variable name mismatch")}
   
@@ -61,17 +62,20 @@ matchMSToMaster <-  function(data.list,data.id, master, overwrite = F, add.var =
   check <- sum(!is.na(master[match.id]))
   
   #stop function if overwrite = F
-  if(!overwrite){
-    if(check > 0){errors <- cbind(as.character(master$species)[match.id[,1]][which(!is.na(master[match.id]), arr.ind = T)],
-                                  names(master)[match.id[,2]][which(!is.na(master[match.id]), arr.ind = T)])
-                  print(errors)
-                  write.csv(errors, file=paste("r data/Data overwrite error reports/", data.id,".csv", sep = ""), 
-                            row.names = F)
-                  print(unique(errors[,2]))
-                  stop("Function terminated. Data overwrite danger")}}
   
-  #Notify of any data overwriting
-  print(paste( check, "datapoints overwritten"))
+    if(check > 0){if(!overwrite){stop("Function terminated. Data overwrite danger")}else{
+      errors <- cbind(as.character(master$species)[match.id[,1]][which(!is.na(master[match.id]), arr.ind = T)],
+                                  names(master)[match.id[,2]][which(!is.na(master[match.id]), arr.ind = T)])
+          
+                  write.csv(errors, file=paste(input.folder, "r data/Data overwrite error reports/", data.id,".csv", sep = ""), 
+                            row.names = F)
+                  
+                  #Notify of any data overwriting
+                  print(paste(check, "datapoints overwritten"))
+                  
+                  
+    }
+
   
   #match data to master
   master[match.id] <- match.dat[id]
