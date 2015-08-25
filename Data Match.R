@@ -23,6 +23,9 @@ D2 <- read.csv("standardised csv data/M.System _ D.Mode Data, Species 4999 - 999
 D5 <- labelVars(read.csv("standardised csv data/clutch size.csv", stringsAsFactors=FALSE), "D5", label = T)
 
 D6 <- labelVars(read.csv("standardised csv data/bird_ssd7.csv", stringsAsFactors=FALSE), "D6", label = T)
+D6a <- labelVars(read.csv("standardised csv data/bird_ssd7_clutch.size.akif.csv", stringsAsFactors=FALSE), "D6", label = T)
+  D6a$clutch.size[D6a$species == "Zonotrichia_leucophrys"] <- 4.5
+
 D7 <- read.csv("standardised csv data/ASR_mortality_to_Anna_Gavin.csv", stringsAsFactors=FALSE)
 D8 <- read.csv("standardised csv data/life_history_to_Anna_Gavin.csv", stringsAsFactors=FALSE)
 D9 <- read.csv("standardised csv data/breeding_system_to_Anna_Gavin.csv", stringsAsFactors=FALSE)
@@ -62,26 +65,27 @@ data.list <- list(D1 = D1, D2 = D2, D3 = D3, D4 = D4, D5 = D5, D6 = D6, D7 = D7,
 #Make master spreadsheet. Copy first three columns (index, species, family) straight across. 
 #Set species names as rownames
 
-#BS.varnames <- as.vector(read.table("r data/BS varnames.csv", quote="\"")[,"V1"])
-master.vnames <- unique(unlist(lapply(data.list[c(1:4, 7:9)], FUN=names)))
+var.omit <- c("andras.dat", "elliott.dat", "dm.dat", "ms.dat", "aus_ind_birds")
+taxo.var <- c("index", "species", "subspp", "parent.spp", "order","family")
+
+# compile the unique var names spread across the first 4 data collection sheets,. As as the start of the master
+master.vnames <- unique(unlist(lapply(data.list[paste("D",c(1:4, 7:9), sep = "")], FUN=names)))
+master.vnames <- master.vnames[!(master.vnames %in% var.omit)]
 master.vnames <- c(master.vnames[1:2], 
                    "subspp", "parent.spp", "order",
                    master.vnames[3:length(master.vnames)])
 
+# create master shell. fill with NAs
 master <- data.frame(matrix(NA, ncol= length(master.vnames), nrow = dim(D3)[1]))
 names(master) <-master.vnames
-master[,match(names(D3[1:3]), names(master))] <-D3[,1:3]
+# use D3 data to populate taxonomic columns
+master[,match(c("index", "species", "family"), names(master))] <-D3[,c("index", "species", "family")]
 master$subspp <- FALSE
-
 rownames(master) <- as.character(master$species)
 
-
-
-
+# populate order column by matching family to order data
 o2f <- unique(read.csv("standardised csv data/order_to_family.csv", stringsAsFactors = F))
 o2f[,1] <- paste(substr(o2f[,1], 1, 1), tolower(substr(o2f[,1], 2, nchar(o2f[,1]))), sep="")
-
-
 master$order <- o2f$order[match(master$family, o2f$family)]
 
 
@@ -91,6 +95,7 @@ master$order <- o2f$order[match(master$family, o2f$family)]
 
 # Set folders
 output.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Outputs/"
+input.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/"
 
 # Read in match params for individual dataset matches
 FUN.params <- c("data.match", "match")
@@ -102,14 +107,21 @@ assign(paste(FUN.param, "params", sep ="."), read.csv(paste("r data/params/",FUN
 
 
 #Match Mating System datasheets (D1-D4)
-master <- matchMSToMaster(data.list, "D9" ,master, overwrite = F)
-master <- matchMSToMaster(data.list, "D8" ,master, overwrite = T)
-master <- matchMSToMaster(data.list, "D7" ,master, overwrite = T)
+master <- matchMSToMaster(data.list, "D9" ,master, overwrite = F, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folderr)
+master <- matchMSToMaster(data.list, "D8" ,master, overwrite = T, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folder)
+master <- matchMSToMaster(data.list, "D7" ,master, overwrite = T, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folder)
 
-master <- matchMSToMaster(data.list, "D3" ,master, overwrite = T)
-master <- matchMSToMaster(data.list, "D2" ,master, overwrite = T)
-master <- matchMSToMaster(data.list, "D1" ,master, overwrite = T)
-master <- matchMSToMaster(data.list, "D4" ,master, overwrite = T)
+master <- matchMSToMaster(data.list, "D3" ,master, overwrite = T, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folder)
+master <- matchMSToMaster(data.list, "D2" ,master, overwrite = T, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folder)
+master <- matchMSToMaster(data.list, "D1" ,master, overwrite = T, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folder)
+master <- matchMSToMaster(data.list, "D4" ,master, overwrite = T, add.var = NULL, 
+                          taxo.var = taxo.var, var.omit = var.omit, input.folder)
 
 #Correct error to spp name on master
 master$species[master$species == "Nectarinia_neergardi"] <- "Nectarinia_neergaardi"
