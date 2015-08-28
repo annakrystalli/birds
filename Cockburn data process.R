@@ -2,12 +2,11 @@
 processCockburn <- function(){
 
 dd <- read.csv("standardised csv data/Cockburn 2006_Appendix A resub process.csv", stringsAsFactors=FALSE)
-
+code <- read.csv("refs/Cockburn 2006_Appendix A resub source.csv", stringsAsFactors=FALSE)
 
 #convert shortened genera names to full
 rep <- grep("\\.$", dd$species1)
 src <- which(!1:length(dd$species1) %in% rep)
-
 
 for(i in rep){
   if(!substr(dd$species1[i],1,1) == substr(dd$species1[src[max(which(src < i))]],1,1)){
@@ -26,6 +25,15 @@ for(i in rep1){
 
     dd$pc.ref[i] <- dd$pc.ref[src1[max(which(src1 < i))]]
 }
+
+
+codes <- dd$pc.ref
+codes <- str_split(codes, ",")
+
+refs <- sapply(codes, FUN = function(x, code){str_c(code$ref[match(as.numeric(x), code$code)],
+                                                    collapse = " || ")}, code = code)
+
+dd$pc.ref <- refs
 
 #replace species column & delete individual columns and change ref column name
 dd$species <- paste(dd$species1, dd$species2, sep = "_")
