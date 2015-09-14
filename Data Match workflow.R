@@ -74,7 +74,8 @@ dl <- c(dl, list(D9 = processDat("breeding_system_to_Anna_Gavin.csv", label = F,
     dl[["D9"]]$data$fpg <- dl[["D9"]]$data$fpg/100  #change to prop for consistency
 
 #source("~/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/scripts/Cockburn data process.R", local = T)
-dl <- c(dl, list(D12 = processDat("Cockburn 2006_Appendix A resub.csv", label = F, taxo.dat, var.omit)))
+dl <- c(dl, list(D12 = processDat("Cockburn 2006_Appendix A resub.csv", label = F, taxo.dat, var.omit,
+                                  observer = "unknown")))
 
 processBirdFuncTxt()
 dl <- c(dl, list(D13 = processDat("BirdFuncDat.csv", label = F, taxo.dat, var.omit,
@@ -83,7 +84,7 @@ dl <- c(dl, list(D13 = processDat("BirdFuncDat.csv", label = F, taxo.dat, var.om
 #...Environmental vars.......................
 
 dl <- c(dl, list(D14 = processDat("BioClim.csv", label = F, taxo.dat, var.omit,
-                                  ref = "bioclim")))
+                                  ref = "Hijmans, R.J., S.E. Cameron, J.L. Parra, P.G. Jones and A. Jarvis, 2005. Very high resolution interpolated climate surfaces for global land areas. International Journal of Climatology 25: 1965-1978.")))
 
 #D14 dl <- c(dl, list(D7 = processDat("birdlife spp list.csv", label = F, taxo.dat, var.omit)))
 #D14 <- D14[!(duplicated(D14$species) & D14$status != "R"),]
@@ -91,7 +92,7 @@ dl <- c(dl, list(D14 = processDat("BioClim.csv", label = F, taxo.dat, var.omit,
 dl <- c(dl, list(D15 = processDat("global bird body masses - no subspp.csv", 
                                      label = F, taxo.dat, var.omit,
                                   ref = " Dunning, Avian Body Masses, 2nd Edition (2008, CRC Press)")))
-dl <- c(dl, list(D16 = processDat("plumage.csv", label = F, taxo.dat, var.omit)))
+#dl <- c(dl, list(D16 = processDat("plumage.csv", label = F, taxo.dat, var.omit)))
 
 
 #...Unresolved vars....................... 
@@ -102,23 +103,11 @@ dl <- c(dl, list(D16 = processDat("plumage.csv", label = F, taxo.dat, var.omit))
 
 
 
-#__________________________________________________________________________________________________________________
-#CREATE MASTER
-#__________________________________________________________________________________________________________________
-
-#Make master spreadsheet. Copy first three columns (index, species, family) straight across. 
-
-
-spp.list <- data.frame(species = dl[["D3"]]$data$species)
-
-
-# create master shell. fill with NAs
-master <- data.frame(matrix(NA, ncol= length(c(taxo.var, var.var, "synonyms", "data.status",
-                                               qcmnames)), nrow = 1))
-names(master) <- c(taxo.var, var.var, "synonyms", "data.status", qcmnames)
 
 #__________________________________________________________________________________________________________________
 #MATCH MS
+
+# Settings
 #__________________________________________________________________________________________________________________
 
 # Read in match params for individual dataset matches
@@ -132,20 +121,32 @@ for(FUN.param in FUN.params){
 output.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Outputs/"
 input.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/"
 
+#__________________________________________________________________________________________________________________
+#CREATE MASTER
+#__________________________________________________________________________________________________________________
 
+# Assign spp.list from species in original dataset D3
+spp.list <- data.frame(species = dl[["D3"]]$data$species)
+
+# create master shell. fill with NAs
+master <- data.frame(matrix(NA, ncol= length(c(taxo.var, var.var, "synonyms", "data.status",
+                                               qcmnames)), nrow = 1))
+names(master) <- c(taxo.var, var.var, "synonyms", "data.status", qcmnames)
+
+# Append processed data to master database
 for(data.ID in names(dl)){
-
-m <-  matchObj(data.ID, spp.list, data = dl[[data.ID]]$data, status = "unmatched", 
-                       sub = data.match.params$sub[data.match.params$data.ID == data.ID],
-                       match.params = match.params, qcref = dl[[data.ID]]$qcref)  
   
-#Match Mating System datasheets (D1-D4)
- output <- matchMSToMaster(m, taxo.var = taxo.var, var.omit = var.omit, 
-                                        input.folder,
+  # Create match object
+  m <-  matchObj(data.ID, spp.list, data = dl[[data.ID]]$data, status = "unmatched", 
+                 sub = data.match.params$sub[data.match.params$data.ID == data.ID],
+                 match.params = match.params, qcref = dl[[data.ID]]$qcref) 
+  
+  # Match data set to spp.list and process
+  output <- matchMSToMaster(m, taxo.var = taxo.var, var.omit = var.omit, input.folder,
                            output.folder = output.folder)
  
-master <- rbind(master, output$mdat)
-spp.list <- output$spp.list
+  master <- rbind(master, output$mdat)
+  spp.list <- output$spp.list
 }
 
 
