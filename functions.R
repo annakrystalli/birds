@@ -219,8 +219,8 @@ processDat <- function(file = "ASR_mortality_to_Anna_Gavin.csv",label = F,
 }
 
 # extracts taxonomic information for species. Matches to original taxonomy used on project so added  
-# species are matched using parent.spp information
-spp2taxoMatch <- function(spp, parent.spp){
+# species are matched using parent.spp or syns information
+spp2taxoMatch <- function(spp, parent.spp, syns){
   
   spp2taxo <- read.csv("r data/spp_to_taxo.csv", stringsAsFactors = F)
   
