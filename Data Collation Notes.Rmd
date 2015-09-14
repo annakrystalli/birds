@@ -1,0 +1,13 @@
+---
+title: "Data Collation Notes"
+author: "Anna Krystalli"
+date: "20 August 2015"
+output: html_document
+---
+
+#### Corrections
+
+- Two clutch size variables in **D6**, ```clutch.size``` and ```clutch.size.akif```. ```clutch.size.akif``` separated into dataset **D6a** to be added to array.
+- Errors in **D6** ```clutch.size.akif``` for *Zonotrichia_leucophrys*. Clutch size recorded as ```26``` when all other clutch size records were around ```4.5```. Corrected to ```4.5``` 
+
+
