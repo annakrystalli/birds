@@ -7,7 +7,7 @@ options(stringsAsFactors = F)
 #____________________________________________________________________________
 
 
-source("/Users/Anna/Documents/workflows/Sex Roles in Birds/birds/functions1.R")
+source("/Users/Anna/Documents/workflows/Sex Roles in Birds/birds/functions.R")
 
 #__________________________________________________________________________________________________________________
 # Settings
