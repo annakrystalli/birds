@@ -220,14 +220,13 @@ processDat <- function(file = "ASR_mortality_to_Anna_Gavin.csv",label = F,
 
 # extracts taxonomic information for species. Matches to original taxonomy used on project so added  
 # species are matched using parent.spp or syns information
-spp2taxoMatch <- function(spp, parent.spp, syns){
+spp2taxoMatch <- function(spp, parent.spp){
   
   spp2taxo <- read.csv("r data/spp_to_taxo.csv", stringsAsFactors = F)
   
   spp.id <- spp %in% spp2taxo$species
   pspp.id <- parent.spp %in% spp2taxo$species
-  syns.id <- syns %in% spp2taxo$species
-  
+
   taxo.id <- spp.id == T | pspp.id == T
   
   if(!all(taxo.id)){
@@ -235,13 +234,14 @@ spp2taxoMatch <- function(spp, parent.spp, syns){
       if(all(spp.id)){
         dat <- spp2taxo[match(spp, spp2taxo$species),]
       }else{
+        sppp <- spp
         p <- parent.spp %in% spp2taxo$species & !spp %in% spp2taxo$species
-        spp[p] <- parent.spp[p]
-        dat <- spp2taxo[match(spp, spp2taxo$species),]
+        sppp[p] <- parent.spp[p]
+        dat <- spp2taxo[match(sppp, spp2taxo$species),]
       }
     }
   
-  dat <- dat[,c("species", "order", "family")]  
+  dat <- data.frame(species = spp, dat[,c("order", "family")])  
   
   return(dat)
 }
@@ -257,10 +257,8 @@ matchMSToMaster <-  function(m, master, taxo.var = taxo.var, var.omit = var.omit
   qcref <- m$qcref
   spp.list <- m$spp.list
   
-  #unmatched
-  unmatched <- get(sub)$species[!(get(sub)$species %in% if(set == "spp.list"){spp.list}else{
-    get(set)$species})]
-  
+  # Check whether matching required and match
+  unmatched <- get(sub)$species[!(get(sub)$species %in% get(set)$species)]
   if(length(unmatched) != 0){
     
     m <- dataSppMatch(m, unmatched = unmatched)
@@ -271,7 +269,7 @@ matchMSToMaster <-  function(m, master, taxo.var = taxo.var, var.omit = var.omit
   # Load taxo variable lookup table
   spp2taxo <- read.csv("r data/spp_to_taxo.csv", stringsAsFactors = F)
   
-  #make vector of match data variables and check that they match the master
+  #make vector of data variables to be added
   match.vars <- names(data)[!names(data) %in% c(taxo.var, var.omit, c("synonyms", "data.status"))]
   match.dat <- data.frame(data[, match.vars])
   names(match.dat) <- match.vars
@@ -407,7 +405,22 @@ sppMatch <- function(X, unmatched = unmatched, lookup.dat){
   if(sub == "data"){match.data <- data.frame(synonyms = spp, species = syns, stringsAsFactors = F)}
   if(sub == "spp.list"){match.data <- data.frame(synonyms = syns, species = spp, stringsAsFactors = F)}
   
-  #Check that data spp name change won't cause a sinle master species name to be associated with two
+  # Check there are no duplicate species matches in match.data table. If so add duplicates to spp list
+  # and keep datapoint under synonym species name. Mark as subspp 
+  if(any(duplicated(match.data$species))){
+    master.add <- match.data$synonyms[duplicated(match.data$species)]
+    
+    data$subspp[data$synonyms %in% master.add] <- TRUE
+    data$parent.spp[match(master.add, data$synonyms)] <- match.data$species[
+      match(master.add, match.data$synonyms)]
+    
+    spp.list <- rbind(spp.list, data.frame(species = master.add))
+    
+    #remove any species from match.data already added to master
+    match.data <- match.data[-which(match.data$synonyms %in% master.add),]
+  }
+  
+  #Check that data spp name change won't cause a single master species name to be associated with two
   # different data points. This would cause the original data point (which is a straught match to the dataset)
   # to be overwritten with most likely data for a subspecies. Identify such cases and add them to the master.
   # The data point can then form a straight match and is identified by the column subspp.
