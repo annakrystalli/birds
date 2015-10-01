@@ -128,12 +128,10 @@ input.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Inputs
 # Assign spp.list from species in original dataset D3
 spp.list <- data.frame(species = dl[["D3"]]$data$species)
 
-# create master shell. fill with NAs
-master <- data.frame(matrix(NA, ncol= length(c(taxo.var, var.var, "synonyms", "data.status",
-                                               qcmnames)), nrow = 1))
-names(master) <- c(taxo.var, var.var, "synonyms", "data.status", qcmnames)
+# create master shell
+master <- c()
 
-# Append processed data to master database
+# match and append processed data to master
 for(data.ID in names(dl)){
   
   # Create match object
@@ -150,38 +148,14 @@ for(data.ID in names(dl)){
 }
 
 
-#Correct error to spp name on master
+
+#__________________________________________________________________________________________________________________
+
+# Make corrections.....................................................................
+
 master$species[master$species == "Nectarinia_neergardi"] <- "Nectarinia_neergaardi"
 master$species[master$species == "Brachypteracias_squamiger"] <- "Brachypteracias_squamigera"
 
-
-
-for(i in c(1, 6:(length(master.vnames)))){
-  if(sum(!is.na(as.numeric(master[,master.vnames[i]])))==0){}else{
-    master[,master.vnames[i]] <- as.numeric(master[,master.vnames[i]]) 
-  }}
-
-
-
-
-#__________________________________________________________________________________________________________________
-#MATCH D5 - D13
-#__________________________________________________________________________________________________________________
-
-output <- list(master = master)
-
-for(i in 1:(dim(data.match.params)[1])){
-  
-  # Add D5 to D13.....................................................................
-  output <- dataSppMatch(data.list, data.ID = data.match.params$data.ID[i], 
-                         master = output$master, sub = data.match.params$sub[i], match.params = match.params)
-  
-  output$master <- addVars(output$data, output$master)
-}
-
-
-
-# Make corrections.....................................................................
 
 output$master$inc[which(output$master$inc == 15.5)] <- NA #obviously incorrect
 output$master$postf.feed[which(output$master$postf.feed %in% c(31.5, 34  ,35 ,93))] <- NA #obviously incorrect 
@@ -200,7 +174,7 @@ write.csv(output$master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs
 
 #________________________________________________________________________________________________
 #.....MANUAL MATCH Birdlife CODE
-________________________________________________________________________________________________
+#________________________________________________________________________________________________
 testSynonym <- function(spp, x, pm = data.match.params){
   #identify next species being matched and print
   mmatch <- read.csv(paste("r data/match data/",x$data.ID," mmatched.csv", sep = ""),
@@ -285,13 +259,13 @@ any("Gallinula nesiotis" %in% output$data$species)
 
 #________________________________________________________________________________________________
 #.....MANUAL MATCH CODE
-________________________________________________________________________________________________
+#________________________________________________________________________________________________
 any("Accipiter_pulchellus" %in% output$master$species)
 
 
 #________________________________________________________________________________________________
 #.....QC Variables
-________________________________________________________________________________________________
+#________________________________________________________________________________________________
 
 nm <- gsub("_D6", "", names(output$master))
 
