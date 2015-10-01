@@ -230,7 +230,7 @@ spp2taxoMatch <- function(spp, parent.spp){
   taxo.id <- spp.id == T | pspp.id == T
   
   if(!all(taxo.id)){
-    stop(c("no spp2taxo data for species", spp[!taxo.id]))}else{
+    stop(c("no spp2taxo data for species", unique(spp[!taxo.id])))}else{
       if(all(spp.id)){
         dat <- spp2taxo[match(spp, spp2taxo$species),]
       }else{
@@ -238,6 +238,12 @@ spp2taxoMatch <- function(spp, parent.spp){
         p <- parent.spp %in% spp2taxo$species & !spp %in% spp2taxo$species
         sppp[p] <- parent.spp[p]
         dat <- spp2taxo[match(sppp, spp2taxo$species),]
+        
+        # Update spp2taxo file
+        add.dat <- cbind(species = spp[p],spp2taxo[match(parent.spp[p], spp2taxo$species),-1])
+        add.dat$subspp <- TRUE
+        add.dat$parent.spp <- parent.spp[p]
+        write.csv(rbind(spp2taxo, add.dat), "r data/spp_to_taxo.csv", row.names = F)
       }
     }
   
