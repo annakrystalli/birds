@@ -72,6 +72,8 @@ processBirdFuncTxt <- function(){
   names(BirdFuncDat)[names(BirdFuncDat) == 'Scientific'] <- "species"
   names(BirdFuncDat)[names(BirdFuncDat) == 'BodyMass.Value'] <- "unsexed.mass"
   names(BirdFuncDat)[names(BirdFuncDat) == 'BodyMass.Source'] <- "unsexed.mass_ref"
+  names(BirdFuncDat)[names(BirdFuncDat) == "ForStrat.SpecLevel"] <- "ForStrat_qc"
+  names(BirdFuncDat)[names(BirdFuncDat) == "BodyMass.SpecLevel"] <- "unsexed.mass_qc"
   
   names(BirdFuncDat) <- gsub(".Source", "_ref", names(BirdFuncDat))
   names(BirdFuncDat) <- gsub(".Certainty", "_qc", names(BirdFuncDat))
@@ -83,7 +85,7 @@ processBirdFuncTxt <- function(){
     }
   }
   
-  BirdFuncDat <- BirdFuncDat[,-c(1:7,9,38:40)]
+  BirdFuncDat <- BirdFuncDat[,-c(1:7,9,39:40)]
   
   write.csv(BirdFuncDat, "standardised csv data/BirdFuncDat.csv", row.names = F)
 }
