@@ -1,0 +1,94 @@
+#metadata <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/metadata/metadata.csv", stringsAsFactors=FALSE)
+
+
+# dtype.over: named vector to override default and assign summarising function for whole data types.
+# var.over: named vector to override default and assign summarising function for individual variables. 
+  # Can also take the name of a prefered dataset to use
+
+widenMaster <- function(vars, species, master, metadata, datSumm = NULL, varSumm = NULL, dupONLY = T){
+
+  require(dplyr)
+  require(tidyr)
+  
+  
+  Mode <- function(x) {
+    ux <- unique(x)
+    ux[which.max(tabulate(match(x, ux)))]
+  }
+  
+  numbIf <- function(X){lapply(X, FUN = function(x) if(is.numeric(t <- type.convert(x))) t else x)}
+  
+
+  df <- master[master$species %in% species & master$var %in% vars, ]
+  df$value <- trimws(df$value)
+  
+  # create species x var unique ids and identify duplicate ids
+  df <- transform(df, Cluster_ID = as.numeric(interaction(df$species, df$var, drop=TRUE)))
+  
+  dup.ids <- df$Cluster_ID[duplicated(df[,"Cluster_ID"])]
+  
+  
+  
+  # select variable specific datasets to use  
+  if(any(unlist(lapply(varSumm, FUN = class)) == "character")){
+    vs <- which(unlist(lapply(varSumm, FUN = class)) == "character")
+    
+    if(dupONLY == F){
+      for(i in 1:length(vs)){
+        df <- df[!(df$var == names(varSumm)[vs][i] & df$data != varSumm[vs][i]),]
+      }}else{
+        for(i in 1:length(vs)){
+          df <- df[!(df$var == names(varSumm)[vs][i] & df$data != varSumm[vs][i] & df$Cluster_ID %in% dup.ids),]
+        }
+      }
+    
+    dup.ids <- df$Cluster_ID[duplicated(df[,"Cluster_ID"])]
+    
+  }
+  
+  if(length(dup.ids) != 0){
+
+      # create and name default summ function vector
+      funs <- c(mean, Mode, Mode, Mode)
+      names(funs) <- c("numeric","factor", "logical", "character")
+    
+      # override summ method according to data type if required
+      if(!is.null(datSumm)){funs[names(datSumm)] <- datSumm}
+  
+
+      # create & split df of duplicate data rows into list containing duplicates
+      dup.df <- df[df$Cluster_ID %in% dup.ids,]
+      dup.l <- split(dup.df$value, f = dup.df$Cluster_ID)
+      names(dup.l) <- dup.df$var[match(as.numeric(names(dup.l)), dup.df$Cluster_ID)] # name by variable
+      dup.l <- numbIf(dup.l) # coerce to numeric if appropriate
+      
+      # identify data type of each list element by variable name 
+      f <- metadata[metadata$ms.vname %in% names(dup.l), "dat.type"]
+      
+      funs <- funs[f]
+      
+      # override with variable specific function
+      if(!is.null(varSumm)){
+        vsf <- which(lapply(varSumm, FUN = class) == "function")
+        funs[match(names(varSumm)[vsf], names(dup.l))] <- varSumm[vsf]
+      }
+  
+      # apply the appropriate summarising function according to the data type of each variable
+      values <- mapply(function(f, x) f(x), f = funs, x = dup.l)
+      names(values) <- names(dup.l)
+      
+      # remove all data rows with duplicates (ie all dup.ids) from df and append summarised data rows
+      df.w <- df[- which(df$Cluster_ID %in% dup.ids), names(df) %in% c("species", "var", "value")]
+      add.df <- unique(dup.df[,c("species", "var")])
+      df.w <- rbind(df.w, cbind(add.df, value = values[add.df$var]))
+
+  }else{df.w <- df[, names(df) %in% c("species", "var", "value")]}
+
+ 
+  
+  wdf <- spread(df.w, key = var, value, convert = T)
+  
+  return(wdf)
+  
+}
+
