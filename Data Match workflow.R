@@ -157,19 +157,18 @@ master$species[master$species == "Nectarinia_neergardi"] <- "Nectarinia_neergaar
 master$species[master$species == "Brachypteracias_squamiger"] <- "Brachypteracias_squamigera"
 
 
-output$master$inc[which(output$master$inc == 15.5)] <- NA #obviously incorrect
-output$master$postf.feed[which(output$master$postf.feed %in% c(31.5, 34  ,35 ,93))] <- NA #obviously incorrect 
+master$var[which(master$value == 15.5 & master$var == "inc")] <- "inc.dur" #obviously refering to duration
+master$var[which(master$var == "postf.feed" & master$value %in% c(31.5, 34  ,35 ,93))] <- "post.dur" #obviously refering to duration 
+
+master$value <- trimws(master$value)
 
 
-for(i in which(sapply(output$master, FUN = class) == "character")){
-  output$master[,i] <-  str_trim(output$master[,i], side = "both")}
-
-
-write.csv(output$master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master Data Sheet.csv",
+write.csv(master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master data sheet (long).csv",
           row.names = F)
 
 
-
+write.csv(output$spp.list, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master species list.csv",
+          row.names = F)
 
 
 #________________________________________________________________________________________________
