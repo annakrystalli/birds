@@ -7,11 +7,11 @@ rm(list=ls())
 depend <- c("rgeos", "rgdal","sp","maptools", "spatstat",
             "data.table", "stringr", "ggplot2", "scales",
             "compiler", "parallel", "plyr", "foreach", 
-            "doParallel")
+            "doParallel", "doMC")
 
 
 # install dependencies
-install.packages(depend)
+# install.packages(depend)
 
 # load dependencies
 lapply(depend, require, character.only = TRUE)
@@ -26,6 +26,7 @@ source("~/Documents/scripts/Shapefile processing functions.R")
 #.....SETTINGS
 
 options(stringsAsFactors = F)
+
 eres <- 10
 input.folder <- "~/Documents/Range Match Data/"
 bird.folder <- "BirdLife Data/Shapefiles/"
@@ -35,6 +36,7 @@ output.folder <- "Output/"
 wd.bird <-paste(input.folder, bird.folder, sep = "")
 wd.env <-paste(input.folder, env.folder, sep = "")
 wd.output <- paste(input.folder, output.folder, sep = "")
+dir.create(path = paste(wd.output, "Matched Shapefiles/", sep = ""), showWarnings = F)
 dir.create(path = paste(wd.output, "range dat/", sep = ""), showWarnings = F)
 
   
@@ -47,24 +49,23 @@ bios <- c("alt",paste("bio", 1:19, sep=""))
 
 #____________________________________________________________________________
 
-
-#...SET UP CLUSTER..............................................................................
-
 cores <- detectCores()  
 
+#.....CLUSTER METHOD..............................................................................
+#...set up cluster
+
 cl <- makeCluster(cores - 1)
-registerDoParallel(cl)
 
 #clusterExport(cl, varlist =c("wd.bird", "wd.env", "wd.output", "bios", "getSppRow", "fixholes",
                              #"getBioRow", "bioDataTable", "areaDataTable", "latWts"))
 
+#...MULTICORE METHOD..............................................................................
+#...register cores
 
+registerDoMC(cores=cores)
 
+#____________________________________________________________________________
 
-min <- 34
-max <- 36
-
-     
 #...1001:end............
           
 min <- 1
@@ -72,12 +73,16 @@ max <- length(bird.files)
 
 bird.dat.parallel <- foreach(x = bird.files[min:max], .combine = rbind,
                              .inorder = F, .errorhandling = "remove") %dopar%{
-                               require("rgeos")
-                               require("rgdal")
-                               require("sp")
-                               require("maptools")
-                               require("spatstat")
+                               depend <- c("rgeos", "rgdal","sp","maptools", "spatstat",
+                                           "data.table", "stringr", "ggplot2", "scales",
+                                           "compiler", "parallel", "plyr", "foreach", 
+                                           "doParallel")
+                               lapply(depend, require, character.only = TRUE)
+                     
                                getSppRow(x, wd.bird, wd.env, wd.output, bios, 
-                                         input.folder, overwrite = T)}
+                                         input.folder, overwrite = F)}
 
 save(bird.dat.parallel, file = paste(wd.output, "bird.dat.Rdata",sep = ""))
+write.csv(bird.dat.parallel, file = paste(wd.output, "bird.dat.csv", sep = ""))
+
+stopCluster(cl)

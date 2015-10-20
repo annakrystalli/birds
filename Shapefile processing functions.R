@@ -1,8 +1,12 @@
+#____________________________________________________________________________
+#.....FUNCTIONS
+
+#____________________________________________________________________________
 
 # Produces appropriate error message and saves error report if required
-processError <- function(type, spp, input.folder, check = NA, xt = NULL){
+processError <- function(type, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite){
   
-  dir.create(path = paste(input.folder, "Output/error reports/", sep = ""), showWarnings = F)
+  dir.create(path = paste(wd.output, "error reports/", sep = ""), showWarnings = F)
   
   err.df <- data.frame(data = 1:4, error = c("no presence",
                                              "no polys",
@@ -18,9 +22,16 @@ processError <- function(type, spp, input.folder, check = NA, xt = NULL){
   error.rep <- data.frame(species = spp, error = err.df[type, "error"],
                           area.lost = if(type %in% c(1:2,4)){1}else{1 - (gArea(xt[-check,])/gArea(xt))},
                           polys = if(any(is.na(check))){NA}else{str_c(paste(check), 
-                                                                      collapse = ", ")})
-  
-  write.csv(error.rep, paste(input.folder, "Output/error reports/", 
+                                                                      collapse = ", ")},
+                          season = if(any(is.na(check))){NA}else{str_c(paste(xt$SEASONAL[check]), 
+                                                                       collapse = ", ")})
+  error.ls <- list.files(paste(wd.output, "error reports/", sep = ""))
+  if(overwrite == F & paste(spp,".csv", sep = "") %in% error.ls){
+    pr.error <- read.csv(paste(wd.output, "error reports/", spp, ".csv", sep = ""), stringsAsFactors = F)
+    error.rep <- rbind(pr.error, error.rep)
+  }
+
+  write.csv(error.rep, paste(wd.output, "error reports/", 
                              spp, ".csv", sep = ""), row.names = F)}
 
 
@@ -45,13 +56,20 @@ latWts <- function(lats, e){cell <- e@grid@cellsize[1]
                             l/l0}
 
 
-# Calculate total area of range and proportion of range utilised under
+# Calculate total area of resident and breeding range (SEASONAL 1:2) and proportion of range utilised under
 # seasonal occupancies 1-4. Compiles into range.dat dataframe
 areaDataTable<- function(xt){  
+  
   data <- NULL
-  a <- gArea(xt)/10^6
+  a <- gArea(xt)/10^6 #calculate area over presence 1:2 and seasonality 1:4
   data <- a
   
+  # if seasonality 1:2 polygons exist, calculate area over only those
+  if(all(!xt$SEASONAL %in% 1:2)){a.sub <- NA}else{
+  a.sub <- gArea(xt[xt$SEASONAL %in% 1:2,])/10^6}
+  data <- cbind(data, a.sub)
+  
+  # calculate the proportion of the range where presence 1:2 occupied at seasonality 1:4
   for(seasonal in 1:4){
     
     xs <-try(xt[xt$SEASONAL == seasonal,], silent = T)
@@ -60,7 +78,7 @@ areaDataTable<- function(xt){
       ap <- as/a}
     data <- cbind(data, ap)}
   data <- as.data.frame(data)
-  colnames(data) <- c('area', paste("area.s", 1:4, sep = ""))
+  colnames(data) <- c('area.t', 'area', paste("area.s", 1:4, sep = ""))
   return(data)}
 
 # Calculates area and latitudinally corrected mean, min, max and variance of bioclim
@@ -68,6 +86,7 @@ areaDataTable<- function(xt){
 # bio column and rows equal to the data table of the SP file.
 bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
   
+  season.id <- xt$SEASONAL %in% 1:2
   
   # means calculated using lat corrected values
   e.dat <- lapply(calc.dat, FUN = function(x,e){x[,1] <- e@data[as.numeric(rownames(x)),1]}, e)
@@ -87,11 +106,20 @@ bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
   var.regions <- data.frame(mapply(e.dat, coo.wts, FUN = function(x, coo.wts){weighted.var(x, coo.wts)}))
   names(var.regions) <- paste(bio, "var", sep=".")
   
+  # Restrict calculation of overall variance to resident (SEASONAL == 1) and breeding grounds (SEASONAL == 2)
+  if(any(season.id)){
+  coo.polys <- coo.polys[season.id]
+  e.dat <- e.dat[season.id]
+  
   wts <- latWts(unlist(coo.polys), e)
   var.all <- data.frame(rep(weighted.var(unlist(e.dat), wts),  dim(var.regions)[1]))
+  }else{
+    var.all <- data.frame(rep(NA,  dim(var.regions)[1]))  
+  }
+  
   names(var.all) <- paste(bio, "varall", sep=".")
   
-  if(bio == "alt"){ area <- gArea(fixholes(xt), byid  = T)/10^6
+  if(bio == "alt"){ area <- gArea(xt, byid  = T)/10^6
                     bio.dat <- data.frame(area, mean.regions, max.regions, min.regions, var.regions, var.all)}else{
                       bio.dat <- data.frame(mean.regions, max.regions, min.regions, var.regions, var.all)}
   return(bio.dat)
@@ -101,6 +129,9 @@ bioDataTable <- cmpfun(bioDataTableF)
 # Compiles the polygon region level bioclim data in processed SP file to 
 # range wide statistics
 getBioRowF <- function(x, bios){
+  
+  if(all(!x$SEASONAL %in% 1:2)){return(NULL)}else{x[x$SEASONAL %in% 1:2,]}
+  
   
   if(!paste(bios[1], "m", sep=".") %in% names(x@data)){
   bio.dat.nm <- paste(rep(bios, each = 4), c(".m", ".max", ".min", ".var"), sep = "")
@@ -129,11 +160,15 @@ getBioRow <- cmpfun(getBioRowF)
 getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios, 
                        input.folder = input.folder, overwrite = F){
   
+  
+  
   t0 <- Sys.time()
   
   spp <- sub("_[0-9].*$", "", bird.file)     
-  load(file=paste(input.folder, "bird.dat.colnames.Rdata", sep=""))
- 
+  #load(file=paste(input.folder, "bird.dat.colnames.Rdata", sep=""))
+  
+  error.ls <- list.files(paste(wd.output, "error reports/", sep = ""))
+  if(overwrite == F & paste(spp,".csv", sep = "") %in% error.ls){return(NULL)}
   done.ls <- list.files(paste(wd.output, "Matched Shapefiles/", sep = ""))
   if(!paste(spp, ".Rdata", sep="") %in% done.ls | overwrite == T){load.bio <- F}else{load.bio <- T}
   range.ls <- list.files(paste(wd.output, "range dat/", sep = ""))
@@ -141,7 +176,7 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
   
   
   
-  if(!load.bio){
+  if(!load.bio | !load.range){
   # Load Shapefile
   #x <- readOGR(dsn, ogrListLayers(dsn))
   dsn <- paste(wd.bird, bird.file, sep="")
@@ -149,7 +184,7 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
 
   
   if(all(!x$PRESENCE %in% 1:2)){
-  processError(type = 1, spp, input.folder, check = NA, xt = NULL)
+  processError(type = 1, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite)
     return(NULL)}
   
   x<- x[x$PRESENCE %in% 1:2 & x$SEASONAL %in% 1:4,]
@@ -157,10 +192,8 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
   }
   
   if(load.range){load(paste(wd.output, "range dat/", spp, ".Rdata", sep = ""))}else{
-    
-    
     xt <- spTransform(x, CRS = CRS("+proj=laea +lon_0=0.001 +lat_0=0.001 +ellps=sphere"))
-    xt <- xt[xt$PRESENCE %in% 1:2 & xt$SEASONAL %in% 1:4,]}
+  }
     
   if(!load.bio){
     
@@ -181,24 +214,29 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
         #OVERLAY - 
         calc.dat <- over(polys,e , returnList = T)
         if(length(unlist(calc.dat)) == 0){
-          processError(type = 2, spp, input.folder, check = NA, xt = NULL)
-          return(NULL)}
+          processError(type = 2, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite)
+          return(NULL)
+        }
         
         
         check <- which(unlist(lapply(calc.dat, FUN = function(x){dim(x[1])[1] == 0})))
           
             if(length(check)>=1){
             if(length(check) == length(calc.dat)){
-              processError(type = 4, spp, input.folder, check = check, xt = NULL)
-              return(NULL)}
+              processError(type = 4, spp, wd.output, check = check, xt = NULL, overwrite = overwrite)
+              return(NULL)
+            }
             
-            processError(type = 3, spp, input.folder, check = check, xt = xt)
+            processError(type = 3, spp, wd.output, check = check, xt = xt, overwrite = overwrite)
             x <- x[-check,]
             if(!load.range){xt <- xt[-check,]}
-            calc.dat <- calc.dat[-check]}}
+            calc.dat <- calc.dat[-check]
+            }
+      }
       
       
-      x@data <- data.frame(x@data, bioDataTable(x, xt, bio, e, wd.env, calc.dat))}
+      x@data <- data.frame(x@data, bioDataTable(x, xt, bio, e, wd.env, calc.dat))
+    }
     
     
     # save spdf    
@@ -222,7 +260,9 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
   # calculate range bio data
   bio.dat <- getBioRow(x, bios)
 
-  
+  if(is.null(bio.dat)){processError(type = 2, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite)
+
+    return(NULL)}
   
   
   print(paste("COMPLETE...........................",spp))
