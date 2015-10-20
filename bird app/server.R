@@ -1,14 +1,25 @@
+#source("plotly_passwords.R")
+
 library(shiny)
 library(dplyr)
 library(tidyr)
 library(psych)
 library(shinyjs)
+#library("devtools") 
+#install_github("ropensci/plotly")
+library(plotly)
+library(prettyR)
 
-dat <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master data sheet (long).csv",
+#source("plotly_passwords.R")
+
+dat <- read.csv("data/data.csv",
                 stringsAsFactors = F)
+print("dat loaded!!")
 
-metadata <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/metadata/metadata.csv", 
+metadata <- read.csv("data/metadata.csv", 
                      stringsAsFactors = FALSE)
+
+print("matadat loaded!!")
 
 vars <- as.list(unique(dat$var))
 names(vars) <- metadata$list.vname[match(unique(dat$var), metadata$ms.vname)]
@@ -18,18 +29,22 @@ shinyServer(function(input, output) {
   
   ### SINGLE VARIABLE PANEL ##################################################
   
-  
   # Subset by family ..............
   output$taxoDat <- renderUI({
+
     choices <- as.list(c("all", sort(as.character(unique(
       dat$family[dat$var == input$variable])))))
+
     selectInput("taxo", "select families", choices = choices, selected = "all",
                 selectize = TRUE)
   })
   
   # Plot output ##############################################################
   output$plot1 <-renderPlotly({
-  
+    print(input$taxo)
+    print(head(dat[1:5]))
+    
+    
     numerise <- function(x){if(is.numeric(t <- type.convert(x))) t else x}
   
     if(is.null(input$taxo)){select <- rep(TRUE, dim(dat)[1])}else{  
@@ -57,16 +72,15 @@ shinyServer(function(input, output) {
        y[match(names(tab), names(y))] <- tab}
      names(y) <- NULL
      
-     plot_ly(x = x,  y = y, 
+     p1 <- plot_ly(x = x,  y = y, 
              type = "bar",
              marker = list(color = toRGB("aquamarine3"),
-                           line = list(color = toRGB("aquamarine3"))))
+                           line = list(color = toRGB("aquamarine3")))) %>%
      
-
-     
-     layout(p, autosize = T, xaxis = list(title = titl), 
+     layout(autosize = T, xaxis = list(title = titl), 
             yaxis = list(title = "counts"), 
-            title = paste("n =", sum(select)), margin = list(b= 100))}else{
+            title = paste("n =", sum(select)), margin = list(b= 100))
+     p1}else{
      
               # HISTOGRAM.....................................................
               
@@ -87,17 +101,18 @@ shinyServer(function(input, output) {
     
 
     
-              plot_ly(data = dat, x = x, 
+            p1 <- plot_ly(data = dat, x = x, 
                       type = "histogram", autobinx = F, 
                       xbins = list(start = minx, 
                                    end = maxx, 
                                    size = size),
                       marker = list(color = toRGB("aquamarine3"),
-                                    line = list(color = toRGB("aquamarine3"))))
+                                    line = list(color = toRGB("aquamarine3")))) %>%
             
               
-              layout(p, xaxis = xaxis,
+              layout(xaxis = xaxis,
                      title = paste("n =", sum(select)))  # dtick = size))
+            p1
    }
     
     })
@@ -113,14 +128,17 @@ shinyServer(function(input, output) {
         select <- dat$family %in% input$taxo}
     select <- select & dat$var == input$variable
     
-    x <- numerise(dat$value[select])
+    x <- dat$value[select]
     
     if(metadata$plot.type[metadata$ms.vname == input$variable] == "histogram"){
+      x <- numerise(x)
       sum <- summary(x)
-      extra <- as.data.frame(round(describe(x),2))
+      extra <- as.data.frame(round(psych::describe(x),2))
       sumtab <- as.data.frame(c(sum, extra[,c("n","sd", "range", "skew", "kurtosis", "se")]))
       names(sumtab) <- gsub("X", "", names(sumtab))
-      sumtab}else{table(x)}
+      sumtab}else{
+        sumtab <- round(prettyR::describe(x)[[2]]$x,2)
+        sumtab <- cbind(descr = rownames(sumtab), sumtab)}
     
     
   }, options = list(searching = FALSE,
@@ -134,7 +152,7 @@ shinyServer(function(input, output) {
         select <- dat$family %in% input$taxo}
     select <- select & dat$var == input$variable
     
-    rawdat <- dat[select,c("species", "order", "family", "value", "data")]
+    rawdat <- dat[select, c("species", "family", "value", "data")]
     rawdat <- as.data.frame(lapply(rawdat,FUN = numerise))
   })
   
@@ -142,13 +160,17 @@ shinyServer(function(input, output) {
   ### CROSS VARIABLE PANEL ##################################################
   output$plot2 <-renderPlotly({
 
-    source("~/Documents/workflows/Sex Roles in Birds/birds/bird app/app output functions.R")
+    #source("app_output_functions.R")
     
     df <- widenMaster(vars = c(input$var1, input$var2), 
                     species = unique(dat$species[dat$var %in% c(input$var1, input$var2)]), 
                     master = dat, 
                     metadata = metadata)
     df <- df[complete.cases(df),]
+    
+    validate(
+      need(nrow(df) >0, "no species with overlapping data. Select different variable pair")
+    )
    
     
     
@@ -200,7 +222,7 @@ shinyServer(function(input, output) {
           
           df <- df[,c("species", input$var1, input$var2)]
           
-          vid <- metadata$plot.type[metadata$ms.vname %in% c(input$var1, input$var2)] == "bar"
+          vid <- metadata$plot.type[match(c(input$var1, input$var2), metadata$ms.vname )] == "bar"
           x <- df[,c(input$var1, input$var2)[vid]]
           y <- df[,c(input$var1, input$var2)[!vid]]
           y.titl <- metadata$descr[metadata$ms.vname == c(input$var1, input$var2)[!vid]]
@@ -215,6 +237,7 @@ shinyServer(function(input, output) {
           
           xaxis <- list(title = metadata$descr[metadata$ms.vname == c(input$var1, input$var2)[vid]])
           yaxis <- list(title = y.titl)
+          z <- NULL
           
         }
         
@@ -222,14 +245,15 @@ shinyServer(function(input, output) {
       
   
       
-      plot_ly(x = x, y = y, z = z,
+      p2 <- plot_ly(x = x, y = y, z = z,
               type = type, mode = "markers", colorscale = "Greens", reversescale = T,
               marker = list(color = toRGB("aquamarine2"), opacity = 0.5, size = 10,
-                            line = list(color = toRGB("aquamarine4"), width = 2)))
+                            line = list(color = toRGB("aquamarine4"), width = 2))) %>%
       
-      
-      layout(p, xaxis = xaxis, yaxis = yaxis,
+      layout(xaxis = xaxis, yaxis = yaxis,
              title = paste("n =", dim(df)[1])) 
+      
+      p2
   })
   
   ### DOWNLOAD PANEL ##################################################
@@ -327,8 +351,15 @@ shinyServer(function(input, output) {
     },
     contentType = "application/zip")
   
+  print("disable download about to run")
+  
   # disable the downdload button on page load
   shinyjs::disable("downloadData")
+  
+  print("disable download about to ran")
+  
 
   
 })
+
+

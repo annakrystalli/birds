@@ -1,4 +1,3 @@
-#metadata <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/metadata/metadata.csv", stringsAsFactors=FALSE)
 
 
 # dtype.over: named vector to override default and assign summarising function for whole data types.
@@ -20,7 +19,7 @@ widenMaster <- function(vars, species, master, metadata, datSumm = NULL, varSumm
   
 
   df <- master[master$species %in% species & master$var %in% vars, ]
-  df$value <- trimws(df$value)
+  #df$value <- trimws(df$value)
   
   # create species x var unique ids and identify duplicate ids
   df <- transform(df, Cluster_ID = as.numeric(interaction(df$species, df$var, drop=TRUE)))
@@ -59,11 +58,12 @@ widenMaster <- function(vars, species, master, metadata, datSumm = NULL, varSumm
       # create & split df of duplicate data rows into list containing duplicates
       dup.df <- df[df$Cluster_ID %in% dup.ids,]
       dup.l <- split(dup.df$value, f = dup.df$Cluster_ID)
+      cl.ids <- as.numeric(names(dup.l))
       names(dup.l) <- dup.df$var[match(as.numeric(names(dup.l)), dup.df$Cluster_ID)] # name by variable
       dup.l <- numbIf(dup.l) # coerce to numeric if appropriate
       
       # identify data type of each list element by variable name 
-      f <- metadata[metadata$ms.vname %in% names(dup.l), "dat.type"]
+      f <- metadata[match(names(dup.l), metadata$ms.vname), "dat.type"]
       
       funs <- funs[f]
       
@@ -75,12 +75,14 @@ widenMaster <- function(vars, species, master, metadata, datSumm = NULL, varSumm
   
       # apply the appropriate summarising function according to the data type of each variable
       values <- mapply(function(f, x) f(x), f = funs, x = dup.l)
-      names(values) <- names(dup.l)
+      names(values) <- cl.ids
       
       # remove all data rows with duplicates (ie all dup.ids) from df and append summarised data rows
-      df.w <- df[- which(df$Cluster_ID %in% dup.ids), names(df) %in% c("species", "var", "value")]
-      add.df <- unique(dup.df[,c("species", "var")])
-      df.w <- rbind(df.w, cbind(add.df, value = values[add.df$var]))
+      df.w <- df[-which(df$Cluster_ID %in% dup.ids), names(df) %in% c("species", "var", "value")]
+      add.df <- unique(dup.df[,c("species", "var", "Cluster_ID")])
+      add.df <- cbind(add.df, value = values[match(add.df$Cluster_ID, cl.ids)])
+      add.df <- add.df[,names(add.df) != "Cluster_ID"]
+      df.w <- rbind(df.w, add.df)
 
   }else{df.w <- df[, names(df) %in% c("species", "var", "value")]}
 

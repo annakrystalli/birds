@@ -1,20 +1,26 @@
+#source("plotly_passwords.R")
 
-
+library(ggplot2)
 library(shiny)
-library(plotly)
 library(dplyr)
 library(tidyr)
+library(psych)
+library(shinyjs)
+#library("devtools")
+#install_github("ropensci/plotly")
+library(plotly)
 
+#source("plotly_passwords.R")
 
 passwordTextInput <- function (inputId, label, value = "") {
   tagList(tags$label(label, `for` = inputId), tags$input(id = inputId, 
                                                          type = "password", value = value,class="passTextInput"))
 }
 
-dat <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master data sheet (long).csv",
+dat <- read.csv("data/data.csv",
                 stringsAsFactors = F)
 
-metadata <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/metadata/metadata.csv", 
+metadata <- read.csv("data/metadata.csv", 
                      stringsAsFactors = FALSE)
 
 
@@ -31,7 +37,7 @@ shinyUI(fluidPage(theme = "bootstrap.css",
         font-weight: 700; line-height: 1.7; 
         color: #82BDA9;
      text-shadow: -1px 0 #336655, 0 1px #336655, 1px 0 #336655, 0 -1px #336655;"),
-  img(src = "bird_sil.png"),
+  img(src = "bird_sil_copy.png"),
   
   br(""),
   
@@ -71,7 +77,8 @@ shinyUI(fluidPage(theme = "bootstrap.css",
             tabPanel("Cross Variable", 
                      h3("Explore cross-variable relationships"),
                      br("Use this panel to exlore the cross variable distribution. 
-                        Tick the **log** box to view logged values"),
+                        Tick the", strong("log"), "box under each variable to view logged values. 
+                        Only works on numeric data"),
                      br(""),
                      
                      sidebarLayout(
@@ -90,12 +97,14 @@ shinyUI(fluidPage(theme = "bootstrap.css",
   
             tabPanel("Download", 
                      h2("Data Download"),
-                     br("Use this panel to select and download data"),
+                     h4("Use this panel to select and download data"),
+                     br(),
                      
                      sidebarLayout(
                        sidebarPanel(h3(strong(em("select data"))),
-                                    selectInput("varOut", h4("select variable"), 
+                                    selectInput("varOut", h4("select variables"), 
                                                 choices = c("all", vars), multiple = T, selectize = T),
+                                    helpText("multiple variables allowed"),
                                     
                                     br(),
                                     
@@ -103,6 +112,7 @@ shinyUI(fluidPage(theme = "bootstrap.css",
                                                        choices = as.list(unique(metadata$cat)[!unique(metadata$cat) 
                                                                                            %in% c("ref", "qc", 
                                                                                                   "id", NA, "taxo")])),
+                                    br(),
                                     h4(strong(em("subset"))),
                                     uiOutput("taxoDat2"),
                                     helpText("Note: to select individual families, first delete",
@@ -116,7 +126,7 @@ shinyUI(fluidPage(theme = "bootstrap.css",
                                     ),
                        
                        mainPanel(
-                         column(3, 
+                         column(5, 
                                 h4(strong("variables")),
                                 htmlOutput('var_out')),
                          column(2, 
