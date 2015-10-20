@@ -162,10 +162,13 @@ master$var[which(master$var == "postf.feed" & master$value %in% c(31.5, 34  ,35 
 
 master$value <- trimws(master$value)
 
-
+master <- data.frame(ID = row.names(master), master)
 write.csv(master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master data sheet (long).csv",
           row.names = F)
 
+dat <- master[, c("species", "family", "var", "value", "data", "ID")]
+write.csv(dat, "~/Documents/workflows/Sex Roles in Birds/birds/bird app/data/data.csv",
+          row.names = F)
 
 write.csv(output$spp.list, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master species list.csv",
           row.names = F)
