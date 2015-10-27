@@ -14,12 +14,9 @@ library(prettyR)
 
 dat <- read.csv("data/data.csv",
                 stringsAsFactors = F)
-print("dat loaded!!")
 
 metadata <- read.csv("data/metadata.csv", 
                      stringsAsFactors = FALSE)
-
-print("matadat loaded!!")
 
 vars <- as.list(unique(dat$var))
 names(vars) <- metadata$list.vname[match(unique(dat$var), metadata$ms.vname)]
@@ -43,8 +40,7 @@ shinyServer(function(input, output) {
   
   # Plot output ##############################################################
   output$plot1 <-renderPlotly({
-    print(input$taxo)
-    print(head(dat[1:5]))
+
     
     
     numerise <- function(x){if(is.numeric(t <- type.convert(x))) t else x}
@@ -356,12 +352,9 @@ shinyServer(function(input, output) {
     },
     contentType = "application/zip")
   
-  print("disable download about to run")
-  
   # disable the downdload button on page load
   shinyjs::disable("downloadData")
   
-  print("disable download about to ran")
   
 
   
