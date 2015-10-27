@@ -25,7 +25,9 @@ metadata <- read.csv("data/metadata.csv",
 
 
 vars <- as.list(unique(dat$var))
-names(vars) <- metadata$list.vname[match(unique(dat$var), metadata$ms.vname)]
+#names(vars) <- metadata$list.vname[match(unique(dat$var), metadata$ms.vname)]
+names(vars) <- paste(metadata$cat[match(unique(dat$var), metadata$ms.vname)], 
+                     "-", metadata$list.vname[match(unique(dat$var), metadata$ms.vname)])
 vars <- vars[order(names(vars))]
   
 h1("my title")

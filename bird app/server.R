@@ -23,6 +23,8 @@ print("matadat loaded!!")
 
 vars <- as.list(unique(dat$var))
 names(vars) <- metadata$list.vname[match(unique(dat$var), metadata$ms.vname)]
+#names(vars) <- paste(metadata$cat[match(unique(dat$var), metadata$ms.vname)], 
+#                    "-", metadata$list.vname[match(unique(dat$var), metadata$ms.vname)])
 vars <- vars[order(names(vars))]
 
 shinyServer(function(input, output) {
@@ -190,7 +192,8 @@ shinyServer(function(input, output) {
       
       z <- NULL
       xaxis <- list(title = x.titl)
-      yaxis <- list(title = y.titl)}else{
+      yaxis <- list(title = y.titl)
+      text <- df$species}else{
         if(all(metadata$plot.type[metadata$ms.vname == input$var1] == "bar",
                metadata$plot.type[metadata$ms.vname == input$var2] == "bar")){
           
@@ -217,6 +220,7 @@ shinyServer(function(input, output) {
           
           xaxis <- list(title = metadata$descr[metadata$ms.vname == input$var1])
           yaxis <- list(title = metadata$descr[metadata$ms.vname == input$var2])
+          text <- ""
           
         }else{
           
@@ -238,6 +242,7 @@ shinyServer(function(input, output) {
           xaxis <- list(title = metadata$descr[metadata$ms.vname == c(input$var1, input$var2)[vid]])
           yaxis <- list(title = y.titl)
           z <- NULL
+          text <- df$species
           
         }
         
@@ -245,7 +250,7 @@ shinyServer(function(input, output) {
       
   
       
-      p2 <- plot_ly(x = x, y = y, z = z,
+      p2 <- plot_ly(x = x, y = y, z = z, hoverinfo ="x+y+text", text = text,
               type = type, mode = "markers", colorscale = "Greens", reversescale = T,
               marker = list(color = toRGB("aquamarine2"), opacity = 0.5, size = 10,
                             line = list(color = toRGB("aquamarine4"), width = 2))) %>%
@@ -315,7 +320,7 @@ shinyServer(function(input, output) {
   
 
   observe({
-    if (input$password == "macrobird15") {
+    if (input$password == password) {
       Sys.sleep(0)
       # enable the download button
       shinyjs::enable("downloadData")}
