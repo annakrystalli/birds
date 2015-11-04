@@ -28,6 +28,10 @@ origin <- read.csv("data collection files/Luciana/csvs/original data sheet.csv",
 updated <- read.csv("data collection files/Luciana/csvs/Luciana data sheet.csv", 
                     stringsAsFactors = F, header = T)
 
+
+codes <- read.csv("data collection files/Luciana/csvs/ref_codes.csv", 
+                    stringsAsFactors = F, header = T)
+
 origin[is.na(origin)] <- ""
 updated[is.na(updated)] <- ""
 
@@ -38,11 +42,18 @@ added[updated != origin[, names(updated)]] <- updated[updated != origin[, names(
     added[added == ""] <- NA
     added <- added[which(rowSums(is.na(added[,3:dim(added)[2]])) < 39),]
 
-for(num.var in names(added)[!names(added) %in% c("ref", "species")]){
-  added[,num.var] <- as.numeric(added[,num.var])
-}
+# trim whitespace
+    added <- as.data.frame(apply(added, 2, FUN = trimws))
+        
+    added$ref <- as.numeric(gsub("vol.","", added$ref))
+    added$ref <- codes$source[match(added$ref, codes$code)]
+    
+#for(num.var in names(added)[!names(added) %in% c("ref", "species")]){
+ # added[,num.var] <- as.numeric(added[,num.var])
+#}
 
-
-write.csv(added, "data collection files/Luciana/csvs/Luciana added data.csv", 
+added <- added[,-1]
+    
+write.csv(added, "standardised csv data/Luciana added data", 
               row.names = F, na = "")
     
