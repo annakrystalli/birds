@@ -560,7 +560,17 @@ addVars <- function(data, master){
   
   return(master)}
 
-
+IDSppMatch <- function(file = "Display & resource_scores.csv"){
+  dd <- read.csv(paste("standardised csv data/", file, sep = ""), stringsAsFactors = F)
+  dd <- dd[!apply(dd[,names(dd) != "spp_no"], 1, FUN = function(x){all(is.na(x))}),]
+  
+  ids <- read.csv("r data/id_to_spp.csv", stringsAsFactors = F)
+  dd <- data.frame(species = ids$species[match(dd$spp_no, ids$index)], dd[,names(dd) != "spp_no"])
+  
+  write.csv(dd, paste("standardised csv data/", gsub(".csv", "",file), "_SPP.csv",sep = ""),
+            row.names = F)
+  
+}
 
 
 # Tests whether a proposed synonym/species has a match in the spp.list/data and updates the mmatched file for the data set.

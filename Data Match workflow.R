@@ -92,8 +92,18 @@ dl <- c(dl, list(D14 = processDat("BioClim.csv", label = F, taxo.dat, var.omit,
 dl <- c(dl, list(D15 = processDat("global bird body masses - no subspp.csv", 
                                      label = F, taxo.dat, var.omit,
                                   ref = " Dunning, Avian Body Masses, 2nd Edition (2008, CRC Press)")))
-dl <- c(dl, list(D16 = processDat("plumage.csv", label = F, taxo.dat, var.omit)))
 
+dl <- c(dl, list(D16 = processDat("plumage.csv", label = F, taxo.dat, var.omit,
+                                  ref = "unknown")))
+
+dl <- c(dl, list(D17 = processDat("Plumage dimorphism data_Natalie Brett_18 Sept 2015.csv", label = F, 
+                                  taxo.dat, var.omit, 
+                                  ref = "The Handbook of the Birds of the World's online database, The Handbook of the Birds of the World Alive",
+                                  observer = "Natalie Brett")))
+
+IDSppMatch(file = "Display & resource_scores.csv")
+dl <- c(dl, list(D18 = processDat("Display & resource_scores_SPP.csv", label = F, taxo.dat, var.omit,
+                                  ref = "unknown")))
 
 #...Unresolved vars....................... 
 #D16 <- read.table("standardised csv data/HBW spp list.csv", 
@@ -132,7 +142,7 @@ spp.list <- data.frame(species = dl[["D3"]]$data$species)
 master <- c()
 
 # match and append processed data to master
-for(data.ID in names(dl)[-16]){
+for(data.ID in names(dl)){
   
   # Create match object
   m <-  matchObj(data.ID, spp.list, data = dl[[data.ID]]$data, status = "unmatched", 
@@ -205,6 +215,7 @@ testSynonym("Aratinga acuticaudata", x = output, pm = data.match.params)
 any("Accipiter_sylvestris" %in% output$spp.list$species)
 any("Accipiter_sylvestris" %in% m$data$species)
 
+any("Aerodramus_ocistus" %in% spp.list$species)
 
 
 
