@@ -206,13 +206,28 @@ processDat <- function(file = "ASR_mortality_to_Anna_Gavin.csv",label = F,
   
   dat$species <- gsub(" ", "_", dat$species)
   
+  # separate qcref data
   dat.l <- separateQcRef(dat)
   
+  # create qcref object
   dat.l$qcref <- matchQcRef(dat = dat.l$data, file, qcref = dat.l$qcref, var.omit, taxo.var,
                             observer, qc, ref, n, notes)
   
+  if("parent.spp" %in% names(dat.l$data)){
+    parent.spp <- dat.l$data$parent.spp
+    dat.l$data <- dat.l$data[,names(dat.l$data) != "parent.spp"]
+  }else{parent.spp <- NULL}
+    
+  # prepare dataset
   dat.l$data <- dataMatchPrep(dat.l$data)
   
+
+  if(!is.null(parent.spp)){
+    dat.l$data$parent.spp <- parent.spp
+    dat.l$data$subspp[!is.na(dat.l$data$parent.spp)] <- T
+  }
+  
+  # check metadata complete
   metadata <- read.csv("metadata/metadata.csv",  stringsAsFactors=FALSE)
   
   if(!all(names(dat.l$data) %in% c(metadata$ms.vname, "synonyms", "data.status"))){
