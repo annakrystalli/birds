@@ -1,6 +1,6 @@
 # Separates qcref variables from data. qcref variables defined in qcmnames. Columns are separated 
 # if they are appended with the appropriate qcref variable label (eg ..._ref). 
-separateQcRef <- function(dat, qcmnames = c("qc", "observer", "ref", "n")){
+separateQcRef <- function(dat, qcmnames = c("qc", "observer", "ref", "n", "notes")){
   
   qcref <- vector("list", length(qcmnames))
   names(qcref) <- qcmnames
@@ -93,7 +93,7 @@ processBirdFuncTxt <- function(){
 # Checks whether qcref variable are appropriately allocated to data columns. Allows the
 # assignment of qcref columns to more than one data variable columns. Produces
 # appropriately named data.frame with qcref variables assigned to appropriate data variables. 
-matchQcRef <- function(dat, file, qcref, var.omit, taxo.var, observer, qc, ref, n){
+matchQcRef <- function(dat, file, qcref, var.omit, taxo.var, observer, qc, ref, n, notes){
   
   
   for(qc.cat in names(qcref)){
@@ -185,7 +185,7 @@ matchQcRef <- function(dat, file, qcref, var.omit, taxo.var, observer, qc, ref, 
 # that metadata information has been supplied for all data variables. 
 processDat <- function(file = "ASR_mortality_to_Anna_Gavin.csv",label = F,
                        taxo.dat, var.omit, data.ID = NULL,
-                       observer = NULL, qc = NULL, ref = NULL, n = NULL){
+                       observer = NULL, qc = NULL, ref = NULL, n = NULL, notes = NULL){
   
   dat <- read.csv(paste("standardised csv data/", file, sep = ""),  stringsAsFactors=FALSE)
   
@@ -209,13 +209,15 @@ processDat <- function(file = "ASR_mortality_to_Anna_Gavin.csv",label = F,
   dat.l <- separateQcRef(dat)
   
   dat.l$qcref <- matchQcRef(dat = dat.l$data, file, qcref = dat.l$qcref, var.omit, taxo.var,
-                            observer, qc, ref, n)
+                            observer, qc, ref, n, notes)
   
   dat.l$data <- dataMatchPrep(dat.l$data)
   
   metadata <- read.csv("metadata/metadata.csv",  stringsAsFactors=FALSE)
   
-  #if(!all(names(dat.l$data) %in% metadata$ms.vname)){stop("metadata missing, metadata file needs updating")}
+  if(!all(names(dat.l$data) %in% c(metadata$ms.vname, "synonyms", "data.status"))){
+    print(names(dat.l$data)[!(names(dat.l$data) %in% c(metadata$ms.vname, "synonyms", "data.status"))])
+    stop("metadata missing, metadata file needs updating")}
   
   return(dat.l)
 }
@@ -257,7 +259,7 @@ spp2taxoMatch <- function(spp, parent.spp){
 # Compiles dataset into format compatible with appending to master database. Takes 
 # match object m.
 matchMSToMaster <-  function(m, master, taxo.var = taxo.var, var.omit = var.omit, 
-                             input.folder, output.folder){
+                             input.folder, output.folder, ignore.unmatched = F){
   
   data <- m$data
   sub <- m$sub
@@ -269,7 +271,7 @@ matchMSToMaster <-  function(m, master, taxo.var = taxo.var, var.omit = var.omit
   unmatched <- get(sub)$species[!(get(sub)$species %in% get(set)$species)]
   if(length(unmatched) != 0){
     
-    m <- dataSppMatch(m, unmatched = unmatched)
+    m <- dataSppMatch(m, unmatched = unmatched, ignore.unmatched = ignore.unmatched)
     data <- m$data
     
   }
@@ -289,7 +291,7 @@ matchMSToMaster <-  function(m, master, taxo.var = taxo.var, var.omit = var.omit
   syns <- as.character(data[,"synonyms"][id[, "row"]])
   var <- as.character(match.vars[id[, "col"]])
   
-  mdat <- cbind(spp2taxoMatch(spp, parent.spp), 
+  mdat <- try(cbind(spp2taxoMatch(spp, parent.spp), 
                 subspp = data[id[,"row"], "subspp"],
                 parent.spp = parent.spp,
                 var = var, 
@@ -299,13 +301,15 @@ matchMSToMaster <-  function(m, master, taxo.var = taxo.var, var.omit = var.omit
                 qc = getQc("qc", qcref = qcref, spp = spp, var = var),
                 observer = getQc("observer", qcref = qcref, spp = spp, var = var),
                 ref = getQc("ref", qcref = qcref, spp = spp, var = var),
-                n = getQc("n", qcref = qcref, spp = spp, var = var))
+                n = getQc("n", qcref = qcref, spp = spp, var = var)))
+  
+  if(class(mdat) == "try-error"){return(m)}else{
   
   
   save(m, file = paste(output.folder, "data/match objects/", m$data.ID, " match object.RData", 
                        sep = ""))
   
-  return(list(mdat = mdat, spp.list = m$spp.list))
+  return(list(mdat = mdat, spp.list = m$spp.list))}
 }
 
 # Processes ITIS synonyms data into a species synonym dataset 
@@ -480,7 +484,7 @@ sppMatch <- function(X, unmatched = unmatched, lookup.dat){
 
 
 # match data set to master species list using all available known match pair tables.
-dataSppMatch <- function(m, unmatched){
+dataSppMatch <- function(m, unmatched, ignore.unmatched = ignore.unmatched){
   
   
   sub <- m$sub
@@ -523,6 +527,7 @@ dataSppMatch <- function(m, unmatched){
                 paste("r data/match data/",data.ID," mmatch.csv", sep = ""),
                 row.names = F)
       print(paste("manual matching required,",length(unmatched3),"datapoints unmatched"))
+      if(ignore.unmatched == T){if(sub == "data"){m$data <- m$data[!m$data$species %in% unmatched3,]}}
       break}
     
     
@@ -554,3 +559,83 @@ addVars <- function(data, master){
     master <- data.frame(master, var.col, stringsAsFactors = F)}
   
   return(master)}
+
+
+
+
+# Tests whether a proposed synonym/species has a match in the spp.list/data and updates the mmatched file for the data set.
+# Takes a match object (x) all information needed is stored within the file
+testSynonym <- function(spp, x){
+  #identify next species being matched and print
+  mmatch <- read.csv(paste("r data/match data/",x$data.ID," mmatched.csv", sep = ""),
+                     stringsAsFactors=FALSE)  
+  
+  sub <- x$sub 
+  
+  
+  if(sub == "spp.list"){
+    set <- "data"
+    lookup <- "species"
+    lookupin <- "synonyms"
+  }
+  if(sub == "data"){
+    set <- "spp.list"
+    lookup <- "synonyms"
+    lookupin <- "species"
+  }   
+  
+  spp.m <- mmatch[[lookup]][min(which(mmatch[lookupin] == "" | is.na(mmatch[[lookupin]])))]
+  print(paste("match", lookup, spp.m))
+  
+  #test potential synonym 
+  if(spp %in% c("Extinct","New")){
+    print(paste("match", lookupin, spp))
+    mmatch[mmatch[lookup] == spp.m, lookupin] <- spp
+    next.spp <-mmatch[[lookup]][min(which(mmatch[lookupin] == "" | is.na(mmatch[[lookupin]])))]
+    
+    print(paste("next", lookup, ":", next.spp))
+    write.csv(mmatch, paste("r data/match data/",x$data.ID," mmatched.csv", sep = ""),
+              row.names = F)
+  }else{
+    spp <- gsub(" ","_", spp)
+    match <- any(spp %in% x[[set]]$species)  
+    print(paste("match", lookupin, spp))
+    print(match)
+    
+    if(match){
+      
+      mmatch[mmatch[lookup] == spp.m, lookupin] <- spp
+      next.spp <-mmatch[[lookup]][min(which(mmatch[lookupin] == "" | is.na(mmatch[[lookupin]])))]
+      
+      print(paste("next", lookup, ":", next.spp))
+      write.csv(mmatch, paste("r data/match data/",x$data.ID," mmatched.csv", sep = ""),
+                row.names = F)
+      
+    }}
+  
+}
+whichNext <- function(x = output, pm = data.match.params){
+  #identify next species being matched and print
+  mmatch <- read.csv(paste("r data/match data/",x$data.ID," mmatched.csv", sep = ""),
+                     stringsAsFactors=FALSE)  
+  
+  sub <- x$sub 
+  
+  
+  if(sub == "spp.list"){
+    set <- "data"
+    lookup <- "species"
+    lookupin <- "synonyms"
+  }
+  if(sub == "data"){
+    set <- "spp.list"
+    lookup <- "synonyms"
+    lookupin <- "species"
+  }   
+  
+  spp.m <- mmatch[[lookup]][min(which(mmatch[lookupin] == "" | is.na(mmatch[[lookupin]])))]
+  print(paste("match", lookup, spp.m))
+  
+}
+
+
