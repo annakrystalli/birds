@@ -1,16 +1,4 @@
-#source("plotly_passwords.R")
 
-library(shiny)
-library(dplyr)
-library(tidyr)
-library(psych)
-library(shinyjs)
-#library("devtools") 
-#install_github("ropensci/plotly")
-library(plotly)
-library(prettyR)
-
-#source("plotly_passwords.R")
 
 dat <- read.csv("data/data.csv",
                 stringsAsFactors = F)

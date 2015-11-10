@@ -1,13 +1,4 @@
 
-library(ggplot2)
-library(shiny)
-library(dplyr)
-library(tidyr)
-library(psych)
-library(shinyjs)
-#library("devtools")
-#install_github("ropensci/plotly")
-library(plotly)
 
 
 passwordTextInput <- function (inputId, label, value = "") {
