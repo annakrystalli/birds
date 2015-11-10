@@ -1,4 +1,3 @@
-#source("plotly_passwords.R")
 
 library(ggplot2)
 library(shiny)
@@ -10,7 +9,6 @@ library(shinyjs)
 #install_github("ropensci/plotly")
 library(plotly)
 
-#source("plotly_passwords.R")
 
 passwordTextInput <- function (inputId, label, value = "") {
   tagList(tags$label(label, `for` = inputId), tags$input(id = inputId, 
