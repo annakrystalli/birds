@@ -78,13 +78,13 @@ widenMaster <- function(vars, species, master, metadata, datSumm = NULL, varSumm
       names(values) <- cl.ids
       
       # remove all data rows with duplicates (ie all dup.ids) from df and append summarised data rows
-      df.w <- df[-which(df$Cluster_ID %in% dup.ids), names(df) %in% c("species", "var", "value")]
-      add.df <- unique(dup.df[,c("species", "var", "Cluster_ID")])
+      df.w <- df[-which(df$Cluster_ID %in% dup.ids), names(df) %in% c("species","order", "family", "var", "value")]
+      add.df <- unique(dup.df[,c("species","order", "family","var", "Cluster_ID")])
       add.df <- cbind(add.df, value = values[match(add.df$Cluster_ID, cl.ids)])
       add.df <- add.df[,names(add.df) != "Cluster_ID"]
       df.w <- rbind(df.w, add.df)
 
-  }else{df.w <- df[, names(df) %in% c("species", "var", "value")]}
+  }else{df.w <- df[, names(df) %in% c("species", "order", "family", "var", "value")]}
 
  
   

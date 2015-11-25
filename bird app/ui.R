@@ -13,10 +13,9 @@ metadata <- read.csv("data/metadata.csv",
                      stringsAsFactors = FALSE)
 
 
-vars <- as.list(unique(dat$var))
-#names(vars) <- metadata$list.vname[match(unique(dat$var), metadata$ms.vname)]
-names(vars) <- paste(metadata$cat[match(unique(dat$var), metadata$ms.vname)], 
-                     "-", metadata$list.vname[match(unique(dat$var), metadata$ms.vname)])
+vars <- as.list(names(dat)[!names(dat) %in% c("species","order","family")])
+names(vars) <- paste(metadata$cat[match(vars, metadata$ms.vname)], 
+                     "-", metadata$list.vname[match(vars, metadata$ms.vname)])
 vars <- vars[order(names(vars))]
   
 h1("my title")
@@ -75,11 +74,17 @@ shinyUI(fluidPage(theme = "bootstrap.css",
                      sidebarLayout(
                        sidebarPanel(h2(strong(em("Inputs select"))),
                                     selectInput("var1", "select variable 1", choices = vars,
-                                                selected = "f.mass"),
+                                                selected = vars[[1]]),
+                                    helpText("only works on numerical variables"),
                                     checkboxInput("log1", label = "log", value = FALSE),
-                                    selectInput("var2", "select variable 2", choices = vars,
-                                                selected = "f.mass"),
-                                    checkboxInput("log2", label = "log", value = FALSE)),
+                                     selectInput("var2", "select variable 2", choices = vars,
+                                                selected = vars[[1]]),
+                                    checkboxInput("log2", label = "log", value = FALSE),
+                                    br(""),
+                                    helpText("only works on image plots for categorical variables"),
+                                    checkboxInput("rel", label = "within category relative proportion", value = FALSE),
+                                    uiOutput("relVar")
+                                    ),
                      
                        mainPanel(plotlyOutput("plot2")))
                      ),
@@ -117,13 +122,10 @@ shinyUI(fluidPage(theme = "bootstrap.css",
                                     ),
                        
                        mainPanel(
-                         column(5, 
-                                h4(strong("variables")),
-                                htmlOutput('var_out')),
-                         column(2, 
-                                h4(strong("n")),
-                                htmlOutput('n_out')),
-                         column(4, 
+                         column(8, 
+                                dataTableOutput('var_out')),
+ 
+                         column(3, 
                                 h4(strong("families")),
                                 htmlOutput('fam_out')))
                    
