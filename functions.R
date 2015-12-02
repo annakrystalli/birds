@@ -575,11 +575,16 @@ addVars <- function(data, master){
   
   return(master)}
 
-IDSppMatch <- function(file = "Display & resource_scores.csv"){
+# Matches sppecies names to identifiers in data. ids needs to be a 2 column dataframe. 
+# str = c(index, species), file = path to data to be matched with column spp_no instead of species.
+# writes processed data file to csv, appending "_SPP" to file name.
+
+IDSppMatch <- function(file = "Display & resource_scores.csv", 
+                       ids = read.csv("r data/id_to_spp.csv", stringsAsFactors = F)){
   dd <- read.csv(paste("standardised csv data/", file, sep = ""), stringsAsFactors = F)
   dd <- dd[!apply(dd[,names(dd) != "spp_no"], 1, FUN = function(x){all(is.na(x))}),]
   
-  ids <- read.csv("r data/id_to_spp.csv", stringsAsFactors = F)
+  ids <- ids
   dd <- data.frame(species = ids$species[match(dd$spp_no, ids$index)], dd[,names(dd) != "spp_no"])
   
   write.csv(dd, paste("standardised csv data/", gsub(".csv", "",file), "_SPP.csv",sep = ""),

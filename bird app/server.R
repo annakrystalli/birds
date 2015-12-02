@@ -169,8 +169,11 @@ shinyServer(function(input, output) {
     xlw <- 14
     
     ### Both variables NUMERIC ##########################################################
+    
     if(all(metadata$plot.type[metadata$ms.vname == input$var1] == "histogram",
            metadata$plot.type[metadata$ms.vname == input$var2] == "histogram")){
+      
+      
       type <- "scatter"
       x <- df[, which(names(df) == input$var1)]
       x.titl <- metadata$descr[metadata$ms.vname == input$var1]
@@ -190,6 +193,7 @@ shinyServer(function(input, output) {
       }else{
         if(all(metadata$plot.type[metadata$ms.vname == input$var1] == "bar",
                metadata$plot.type[metadata$ms.vname == input$var2] == "bar")){
+          
           
           type <- "heatmap"
           x1 <- df[, which(names(df) == input$var1)]
@@ -216,17 +220,21 @@ shinyServer(function(input, output) {
           }
           z <- t(z)
 
-          names <- sapply(unique(as.character(x)), FUN = wordbreakHTML,  width = lw,
-                          USE.NAMES = F)
-          y <-sapply(as.character(c.nm[,"n"]), FUN = wordbreakHTML,  width = ylw,
-                                  USE.NAMES = F)
-          x <- sapply(as.character(r.nm[,"n"]), FUN = wordbreakHTML,  width = xlw,
-          USE.NAMES = F)
+
           
           xaxis <- list(title = wordbreakHTML(metadata$descr[metadata$ms.vname == input$var1], xw))
           yaxis <- list(title = wordbreakHTML(metadata$descr[metadata$ms.vname == input$var2], yw))
           text <- ""
           hoverinfo ="z+x+y+text"
+          
+
+          y <-sapply(as.character(c.nm[,"n"]), FUN = wordbreakHTML,  width = ylw,
+          USE.NAMES = F)
+          x <- sapply(as.character(r.nm[,"n"]), FUN = wordbreakHTML,  width = xlw,
+          USE.NAMES = F)
+          names <- sapply(unique(as.character(x)), FUN = wordbreakHTML,  width = ylw,
+                          USE.NAMES = F)
+ 
         }else{
           
           df <- df[,c("species", input$var1, input$var2)]
@@ -241,6 +249,7 @@ shinyServer(function(input, output) {
           
           x.nm <- data.frame(s = unlist(strsplit(metadata$scores[metadata$ms.vname == c(input$var1, input$var2)[vid]], ",")),
                              n = unlist(strsplit(metadata$levels[metadata$ms.vname == c(input$var1, input$var2)[vid]], ",")))
+          
           x <- x.nm$n[match(x, x.nm$s)]
           x <- sort(factor(x, levels = x.nm$n))
           
@@ -252,7 +261,7 @@ shinyServer(function(input, output) {
           x.titl <- metadata$descr[metadata$ms.vname == c(input$var1, input$var2)[vid]]
           type <- "box"
           
-         
+
 
           xaxis <- list(title = wordbreakHTML(x.titl, xw))
           yaxis <- list(title = wordbreakHTML(y.titl, yw))
@@ -267,12 +276,12 @@ shinyServer(function(input, output) {
       
       p2 <- plot_ly(x = x, y = y, z = z, hoverinfo = hoverinfo, text = text, name = names,
               type = type, mode = "markers", colorscale = "Greens", reversescale = T,
-              marker = list(color = toRGB("aquamarine2"), opacity = 0.5, size = 10,
-                            line = list(color = toRGB("aquamarine4"), width = 2))) %>%
+              marker = list(color = toRGB("aquamarine2"), opacity = 0.5, size = 4.5,
+                            line = list(color = toRGB("aquamarine4"), width = 0.5))) %>%
       
       layout(xaxis = xaxis, yaxis = yaxis,
              title = paste("n =", dim(df)[1]),
-             margin = list(l = 120,
+             margin = list(l = 150,
                            r = 80,
                            b = 120,
                            t = 60)) 
