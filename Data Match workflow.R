@@ -1,13 +1,6 @@
 rm(list=ls())
 
 options(stringsAsFactors = F)
-#____________________________________________________________________________
-#.....Functions
-
-#____________________________________________________________________________
-
-
-source("/Users/Anna/Documents/workflows/Sex Roles in Birds/birds/functions.R")
 
 #__________________________________________________________________________________________________________________
 # Settings
@@ -16,11 +9,27 @@ qcmnames = c("qc", "observer", "ref", "n", "notes")
 var.omit <- c("andras.dat", "elliott.dat", "dm.dat", "ms.dat", "aus_ind_birds", "index")
 taxo.var <- c("species", "order","family", "subspp", "parent.spp")
 var.var <- c("var", "value", "data")
+
+script.folder <- "~/Documents/workflows/Sex Roles in Birds/birds"
+output.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Outputs/"
+input.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/"
+
+#____________________________________________________________________________
+#.....Functions
+
+#____________________________________________________________________________
+
+
+source(paste(script.folder, "/functions.R", sep = ""))
+source(paste(script.folder, "/bird app/app_output_functions.R", sep = ""))
+
+
 #__________________________________________________________________________________________________________________
 #LOAD DATA
 #__________________________________________________________________________________________________________________
 
-setwd("~/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/")
+setwd(input.folder)
+metadata <- read.csv("metadata/metadata.csv",  stringsAsFactors=FALSE)
 
 dl <- NULL
 
@@ -77,7 +86,7 @@ dl <- c(dl, list(D9 = processDat("breeding_system_to_Anna_Gavin.csv", label = F,
 dl <- c(dl, list(D12 = processDat("Cockburn 2006_Appendix A resub.csv", label = F, taxo.dat, var.omit,
                                   observer = "unknown")))
 
-processBirdFuncTxt()
+#processBirdFuncTxt()
 dl <- c(dl, list(D13 = processDat("BirdFuncDat.csv", label = F, taxo.dat, var.omit,
                                   observer = NULL, qc = NULL, ref = NULL)))
 
@@ -101,7 +110,7 @@ dl <- c(dl, list(D17 = processDat("Plumage dimorphism data_Natalie Brett_18 Sept
                                   ref = "The Handbook of the Birds of the World's online database, The Handbook of the Birds of the World Alive",
                                   observer = "Natalie Brett")))
 
-IDSppMatch(file = "Display & resource_scores.csv")
+#IDSppMatch(file = "Display & resource_scores.csv")
 dl <- c(dl, list(D18 = processDat("Display & resource_scores_SPP.csv", label = F, taxo.dat, var.omit,
                                   ref = "unknown")))
 
@@ -127,9 +136,6 @@ for(FUN.param in FUN.params){
   assign(paste(FUN.param, "params", sep ="."), read.csv(paste("r data/params/",FUN.param," params.csv", sep = ""),
                                                         stringsAsFactors=FALSE))}
 
-# Set folders
-output.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Outputs/"
-input.folder <- "/Users/Anna/Google Drive/Sex Roles in Birds Data Project/Inputs/Anna workflow/data in/"
 
 #__________________________________________________________________________________________________________________
 #CREATE MASTER
@@ -149,9 +155,11 @@ for(data.ID in names(dl)){
                  sub = data.match.params$sub[data.match.params$data.ID == data.ID],
                  match.params = match.params, qcref = dl[[data.ID]]$qcref) 
   
+  if(data.ID != "D14"){iu <- F}else{iu <- T}
+  
   # Match data set to spp.list and process
   output <- matchMSToMaster(m, taxo.var = taxo.var, var.omit = var.omit, input.folder,
-                           output.folder = output.folder, ignore.unmatched = F)
+                           output.folder = output.folder, ignore.unmatched = iu)
  
   master <- rbind(master, output$mdat)
   spp.list <- output$spp.list
@@ -172,30 +180,52 @@ master$var[which(master$var == "postf.feed" & master$value %in% c(31.5, 34  ,35 
 
 master$value <- trimws(master$value)
 
+#add identifier
 master <- data.frame(ID = 1:nrow(master), master)
 write.csv(master, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master data sheet (long).csv",
           row.names = F)
+
+# define vars to remove from app / master 
+remove <- c("m.pre.care",
+            "m.incub",
+            "m.post.care",
+            "f.pre.care",
+            "f.incub",
+            "f.post.care",
+            "m.mating.system",
+            "f.mating.system")
 
 
 ### PREPARE APP DATA #####################################################
 dat <- master[, c("species", "family", "var", "value", "data", "ID")]
   # Remove variables
-  dat <- dat[!dat$var %in% c("m.pre.care",
-                             "m.incub",
-                             "m.post.care",
-                             "f.pre.care",
-                             "f.incub",
-                             "f.post.care",
-                             "m.mating.system",
-                             "f.mating.system"),]
+  dat <- dat[!dat$var %in% remove,]
 
   write.csv(dat, "~/Documents/workflows/Sex Roles in Birds/birds/bird app/data/data.csv",
           row.names = F)
+  write.csv(dat, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/app/data.csv",
+            row.names = F)
 
   
 write.csv(output$spp.list, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master species list.csv",
           row.names = F)
 
+
+wide <- widenMaster(vars = unique(master$var), species = unique(master$species), master, 
+                    metadata, datSumm = NULL, varSumm = NULL, dupONLY = T)
+
+
+
+write.csv(wide, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/master data sheet (wide).csv",
+          row.names = F)
+
+
+wide <- wide[,!names(wide) %in% remove]
+
+write.csv(wide, "~/Documents/workflows/Sex Roles in Birds/birds/bird app/data/data.csv",
+          row.names = F)
+write.csv(wide, "~/Google Drive/Sex Roles in Birds Data Project/Outputs/app/data.csv",
+          row.names = F)
 
 #________________________________________________________________________________________________
 #.....MANUAL MATCH Birdlife CODE
@@ -216,6 +246,4 @@ any("Accipiter_sylvestris" %in% output$spp.list$species)
 any("Accipiter_sylvestris" %in% m$data$species)
 
 any("Aerodramus_ocistus" %in% spp.list$species)
-
-
 
