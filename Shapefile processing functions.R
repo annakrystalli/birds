@@ -1,3 +1,5 @@
+
+
 #____________________________________________________________________________
 #.....FUNCTIONS
 
@@ -8,22 +10,23 @@ processError <- function(type, spp, wd.output, check = NA, xt = NULL, overwrite 
   
   dir.create(path = paste(wd.output, "error reports/", sep = ""), showWarnings = F)
   
-  err.df <- data.frame(data = 1:4, error = c("no presence",
+  err.df <- data.frame(data = 1:5, error = c("no presence",
                                              "no polys",
                                              "no data in polys",
-                                             "no data in any polys"))
+                                             "no data in any polys",
+                                             "no seasons"))
   
-  print(paste(spp, if(type %in% c(1:2,4)){"....................NA.............."}else{
+  print(paste(spp, if(type %in% c(1:2,4:5)){"....................NA.............."}else{
     "Warning: .............."}, err.df[type, "error"], 
               if(any(is.na(check))){NULL}else{str_c(paste(check), collapse = ", ")}))
   
 
   
   error.rep <- data.frame(species = spp, error = err.df[type, "error"],
-                          area.lost = if(type %in% c(1:2,4)){1}else{1 - (gArea(xt[-check,])/gArea(xt))},
+                          area.lost = if(type %in% c(1:2,4:5)){1}else{1 - (gArea(xt[-check,])/gArea(xt))},
                           polys = if(any(is.na(check))){NA}else{str_c(paste(check), 
                                                                       collapse = ", ")},
-                          season = if(any(is.na(check))){NA}else{str_c(paste(xt$SEASONAL[check]), 
+                          season = if(any(is.na(check))){NA}else{str_c(paste(xt$seasonal[check]), 
                                                                        collapse = ", ")})
   error.ls <- list.files(paste(wd.output, "error reports/", sep = ""))
   if(overwrite == F & paste(spp,".csv", sep = "") %in% error.ls){
@@ -36,7 +39,7 @@ processError <- function(type, spp, wd.output, check = NA, xt = NULL, overwrite 
 
 
 # fixholes in Spatial Polygon (SP) object
-fixholesF = function(sp.obj) {
+fix.holes <- function(sp.obj) {
   require(rgeos)
   require(stringr)
   if(!inherits(sp.obj, "SpatialPolygons")) stop("Input object must be of class SpatialPolygons")
@@ -45,7 +48,7 @@ fixholesF = function(sp.obj) {
   slot(sp.obj, "polygons") = pls1
   return(sp.obj)
 }
-fixholes <- cmpfun(fixholesF)
+
 
 # Calculate latitudinal weights for environmental variables. Used to correct
 # calculation of region wide statistics
@@ -56,37 +59,30 @@ latWts <- function(lats, e){cell <- e@grid@cellsize[1]
                             l/l0}
 
 
-# Calculate total area of resident and breeding range (SEASONAL 1:2) and proportion of range utilised under
+# Calculate total area of resident and breeding range (seasonal 1:2) and proportion of range utilised under
 # seasonal occupancies 1-4. Compiles into range.dat dataframe
-areaDataTable<- function(xt){  
+areaDataTable<- function(xt, seasonal){  
   
   data <- NULL
-  a <- gArea(xt)/10^6 #calculate area over presence 1:2 and seasonality 1:4
+  a <- gArea(xt)/10^6 #calculate area over defined presence and seasonality. 
   data <- a
   
-  # if seasonality 1:2 polygons exist, calculate area over only those
-  if(all(!xt$SEASONAL %in% 1:2)){a.sub <- NA}else{
-  a.sub <- gArea(xt[xt$SEASONAL %in% 1:2,])/10^6}
-  data <- cbind(data, a.sub)
-  
   # calculate the proportion of the range where presence 1:2 occupied at seasonality 1:4
-  for(seasonal in 1:4){
+  for(seasonal.id in seasonal){
     
-    xs <-try(xt[xt$SEASONAL == seasonal,], silent = T)
-    if(class(xs) == "try-error"){ap <- NA}else{
+    xs <-xt[xt$seasonal == seasonal.id,]
+    if(nrow(xs) == 0){ap <- 0}else{
       as <- gArea(xs)/10^6
       ap <- as/a}
     data <- cbind(data, ap)}
   data <- as.data.frame(data)
-  colnames(data) <- c('area.t', 'area', paste("area.s", 1:4, sep = ""))
+  colnames(data) <- c('area', paste("area.s", seasonal, sep = ""))
   return(data)}
 
 # Calculates area and latitudinally corrected mean, min, max and variance of bioclim
 # variable (bio) for each polygon region (each row of x@data). Creates data frame of single 
 # bio column and rows equal to the data table of the SP file.
-bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
-  
-  season.id <- xt$SEASONAL %in% 1:2
+bioDataTable <- function(x, xt, bio, e, wd.env, calc.dat){
   
   # means calculated using lat corrected values
   e.dat <- lapply(calc.dat, FUN = function(x,e){x[,1] <- e@data[as.numeric(rownames(x)),1]}, e)
@@ -103,34 +99,28 @@ bioDataTableF <- function(x, xt, bio, e, wd.env, calc.dat){
   min.regions <- data.frame(unlist(lapply(e.dat, FUN = function(x){min(x)})))
   names(min.regions) <- paste(bio, "min", sep=".")
   
-  var.regions <- data.frame(mapply(e.dat, coo.wts, FUN = function(x, coo.wts){weighted.var(x, coo.wts)}))
+  var.regions <- data.frame(mapply(e.dat, coo.wts, FUN = function(x, coo.wts){wtd.var(x, coo.wts)}))
   names(var.regions) <- paste(bio, "var", sep=".")
   
-  # Restrict calculation of overall variance to resident (SEASONAL == 1) and breeding grounds (SEASONAL == 2)
-  if(any(season.id)){
-  coo.polys <- coo.polys[season.id]
-  e.dat <- e.dat[season.id]
-  
+  # Restrict calculation of overall variance to resident (seasonal == 1) and breeding grounds (seasonal == 2)
   wts <- latWts(unlist(coo.polys), e)
-  var.all <- data.frame(rep(weighted.var(unlist(e.dat), wts),  dim(var.regions)[1]))
-  }else{
-    var.all <- data.frame(rep(NA,  dim(var.regions)[1]))  
-  }
+  var.all <- data.frame(rep(wtd.var(unlist(e.dat), wts),  dim(var.regions)[1]))
+  
+  # var.all <- data.frame(rep(NA,  dim(var.regions)[1]))  
   
   names(var.all) <- paste(bio, "varall", sep=".")
   
-  if(bio == "alt"){ area <- gArea(xt, byid  = T)/10^6
+  if(bio == bios[1]){ area <- gArea(xt, byid  = T)/10^6
                     bio.dat <- data.frame(area, mean.regions, max.regions, min.regions, var.regions, var.all)}else{
                       bio.dat <- data.frame(mean.regions, max.regions, min.regions, var.regions, var.all)}
   return(bio.dat)
 }
-bioDataTable <- cmpfun(bioDataTableF)
 
 # Compiles the polygon region level bioclim data in processed SP file to 
 # range wide statistics
-getBioRowF <- function(x, bios){
+getBioRow <- function(x, bios){
   
-  if(all(!x$SEASONAL %in% 1:2)){return(NULL)}else{x[x$SEASONAL %in% 1:2,]}
+  if(all(!x$seasonal %in% 1:2)){return(NULL)}else{x[x$seasonal %in% 1:2,]}
   
   
   if(!paste(bios[1], "m", sep=".") %in% names(x@data)){
@@ -145,7 +135,7 @@ getBioRowF <- function(x, bios){
     min <- min(x@data[,paste(bio, "min", sep=".")])
     var <- unique(x@data[,paste(bio, "varall", sep=".")])
     
-    if(bio == "alt"){bio.dat<- data.frame(mean, max, min, var)
+    if(bio == bios[1]){bio.dat<- data.frame(mean, max, min, var)
                      names(bio.dat) <- paste(bio, c(".m", ".max", ".min", ".var"), sep = "")}else{
                        dat<- data.frame(mean, max, min, var)
                        names(dat) <- paste(bio, c(".m", ".max", ".min", ".var"), sep = "")
@@ -153,18 +143,24 @@ getBioRowF <- function(x, bios){
                      }
   }}
   return(bio.dat)}
-getBioRow <- cmpfun(getBioRowF)
 
 
+temp.correct <- function(e, bio, bios_corr){
+  if(bio %in% bios_corr){
+    e@data <- e@data/10
+    return(e)
+  }
+}
 
-getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios, 
-                       input.folder = input.folder, overwrite = F){
-  
-  
+getSppRow <- function(spp.file, wd.bird, wd.env, wd.output, bios, 
+                       input.folder = input.folder, overwrite = F, 
+                      master.shp = NULL, master.shp_spp.names = NULL,
+                      presence = 1:2, seasonal = 1:4, fixholes = T,
+                      trim.to.data = T, bios_corr = NULL){
   
   t0 <- Sys.time()
   
-  spp <- sub("_[0-9].*$", "", bird.file)     
+  spp <- sub("_[0-9].*$", "", spp.file)     
   #load(file=paste(input.folder, "bird.dat.colnames.Rdata", sep=""))
   
   error.ls <- list.files(paste(wd.output, "error reports/", sep = ""))
@@ -178,23 +174,24 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
   
   if(!load.bio | !load.range){
   # Load Shapefile
-  #x <- readOGR(dsn, ogrListLayers(dsn))
-  dsn <- paste(wd.bird, bird.file, sep="")
-  x <- readShapeSpatial(dsn, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+    if(is.null(master.shp)){
+      x <- readOGR(dsn = path.expand(wd.bird), gsub(".shp", "", spp.file))}else{
+        x <- master.shp[master.shp@data[,master.shp_spp.names] == spp.file,]
+        
+        x<- x[x$presence %in% presence,]
+        x<- x[x$seasonal %in% seasonal,]
+        if(fixholes){x<- fix.holes(x)} 
+      }
+ 
+  names(x@data) <- tolower(names(x@data))
+  
 
-  
-  if(all(!x$PRESENCE %in% 1:2)){
-  processError(type = 1, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite)
-    return(NULL)}
-  
-  x<- x[x$PRESENCE %in% 1:2 & x$SEASONAL %in% 1:4,]
-  x<- fixholes(x)
   }
   
   if(load.range){load(paste(wd.output, "range dat/", spp, ".Rdata", sep = ""))}else{
     xt <- spTransform(x, CRS = CRS("+proj=laea +lon_0=0.001 +lat_0=0.001 +ellps=sphere"))
   }
-    
+   
   if(!load.bio){
     
     # Extract BIOClim data and update spdf
@@ -204,11 +201,11 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
       
       # import and set bio
       bio <- gsub(".bil", "", env.file)
-      e <- readGDAL(paste(wd.env, env.file, sep = ""))
-      if(bio %in% paste("bio", c(1:2, 4:11), sep = "")){e@data <- e@data/10}
+      e <- readGDAL(path.expand(paste(wd.env, env.file, sep = "")))
+      if(!is.null(bios_corr)){e <- temp.correct(e, bio, bios_corr)}
       
       
-      if(env.file == "alt.bil"){
+      if(env.file == env.files[1]){
         # Make polys
         polys <- SpatialPolygons(x@polygons, proj4string = CRS(summary(e)$proj4string))
         #OVERLAY - 
@@ -233,8 +230,6 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
             calc.dat <- calc.dat[-check]
             }
       }
-      
-      
       x@data <- data.frame(x@data, bioDataTable(x, xt, bio, e, wd.env, calc.dat))
     }
     
@@ -243,13 +238,30 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
     save(x, file = paste(wd.output, "Matched Shapefiles/", spp,".Rdata", sep=""))
     
 
-  }else{load(file = paste(wd.output, "Matched Shapefiles/", spp,".Rdata", sep=""))}
+  }else{
+    load(file = paste(wd.output, "Matched Shapefiles/", spp,".Rdata", sep=""))
+    }
+  
+  if(all(!x$presence %in% presence)){
+    processError(type = 1, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite)
+    return(NULL)}
+  
+  if(all(!x$seasonal %in% seasonal)){
+    processError(type = 5, spp, wd.output, check = NA, xt = NULL, overwrite = overwrite)
+    return(NULL)}
+  
+  if(trim.to.data){
+    if(!is.null(master.shp)){
+      seasonal <- intersect(seasonal, unique(master.shp$seasonal))
+      presence <- intersect(presence, unique(master.shp$presence))
+    }
+  }
   
   
   if(!load.range){
     t2 <- Sys.time()
     # Calculate range attribute data
-    range.dat <- areaDataTable(xt)
+    range.dat <- areaDataTable(xt, seasonal)
   
     save(range.dat, file = paste(wd.output, "range dat/", spp, ".Rdata", sep = ""))
     t3 <- Sys.time()
@@ -271,32 +283,31 @@ getSppRowF <- function(bird.file, wd.bird, wd.env, wd.output, bios,
   
   row.dat <- data.frame(spp, range.dat, bio.dat)
   return(row.dat)}
-getSppRow <- cmpfun(getSppRowF)
 
 
 
-aggregateDuplicates <- function(dat, wd.bird, bird.file, bio.nm, bios, wd.output, x){
+aggregateDuplicates <- function(dat, wd.bird, spp.file, bio.nm, bios, wd.output, x){
   
   if(any(duplicated(dat[,bio.nm]))){
     
-  spp <- sub(".Rdata", "", bird.file)
+  spp <- sub(".Rdata", "", spp.file)
 
   dsn <- paste(wd.bird, list.files(wd.bird, pattern = ".shp")[grep(spp, 
                                                                    list.files(wd.bird, pattern = ".shp"))], 
                                                               sep="")
   # Load Shapefile
   xt <- readOGR(dsn, ogrListLayers(dsn))
-  xt <- xt[xt$PRESENCE %in% 1:2,]
+  xt <- xt[xt$presence %in% 1:2,]
   
-  if(any(!xt$SEASONAL %in% dat$SEASONAL)){
-    dat <- dat[xt$PRESENCE %in% dat$PRESENCE & xt$SEASONAL %in% dat$SEASONAL,]
+  if(any(!xt$seasonal %in% dat$seasonal)){
+    dat <- dat[xt$presence %in% dat$presence & xt$seasonal %in% dat$seasonal,]
     
     areas <- dat$area/sum(dat$area)
     for(bio in bios){
       dat[, paste(bio, ".varall", sep = "")] <- weighted.mean(dat[, paste(bio, ".var", sep = "")],
                                                               areas)}
     
-    x <- x[xt$PRESENCE %in% dat$PRESENCE & xt$SEASONAL %in% dat$SEASONAL,]
+    x <- x[xt$presence %in% dat$presence & xt$seasonal %in% dat$seasonal,]
     x@data <- dat
     
     #save corrected bio data
@@ -304,76 +315,76 @@ aggregateDuplicates <- function(dat, wd.bird, bird.file, bio.nm, bios, wd.output
     
     #load and save corrected range data
     load(file = paste(wd.output,"range dat/", spp, ".Rdata", sep=""))
-    range.dat[which(!(1:4 %in% unique(dat$SEASONAL)))+1] <- NA
+    range.dat[which(!(1:4 %in% unique(dat$seasonal)))+1] <- NA
     range.dat[2:5] <- range.dat[2:5]/sum(range.dat[2:5], na.rm = T)
     range.dat$area <- sum(dat$area)
     
     save(range.dat, file = paste(wd.output,"range dat/", spp, ".Rdata", sep=""))
   }}
   
-  dup <-  dat$SEASONAL[duplicated(dat$SEASONAL)]
+  dup <-  dat$seasonal[duplicated(dat$seasonal)]
   if(length(dup) == 0){return(dat)}
-  seasons <- unique(dat$SEASONAL)
+  seasons <- unique(dat$seasonal)
   nondup <- seasons[!seasons %in% dup]
   
   
   areas <- dat$area/sum(dat$area)
   
   new.dat <- data.frame(matrix(NA, nrow = length(seasons), ncol = length(bio.nm) + 1))
-  names(new.dat) <- c("SEASONAL", bio.nm)
-  new.dat$SEASONAL <- seasons
+  names(new.dat) <- c("seasonal", bio.nm)
+  new.dat$seasonal <- seasons
   
   for(i in 1:length(dup)){
     
     for(j in 1:length(bios)){    
-      mu <- dat[dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".m$", sep = ""), bio.nm)]]
-      sigma <- dat[dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".var$", sep = ""), bio.nm)]]
+      mu <- dat[dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".m$", sep = ""), bio.nm)]]
+      sigma <- dat[dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".var$", sep = ""), bio.nm)]]
       
       
-      new.dat[new.dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".m$", sep = ""), bio.nm)]] <-
-        weighted.mean(mu, areas[dat$SEASONAL == dup[i]])
+      new.dat[new.dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".m$", sep = ""), bio.nm)]] <-
+        weighted.mean(mu, areas[dat$seasonal == dup[i]])
       
-      new.dat[new.dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".var$", sep = ""), bio.nm)]] <- 
+      new.dat[new.dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".var$", sep = ""), bio.nm)]] <- 
         sqrt(weighted.mean(mu^2 + sigma^2, 
-                           areas[dat$SEASONAL == dup[i]]) - weighted.mean(mu, 
-                                                                          areas[dat$SEASONAL == dup[i]])^2)
+                           areas[dat$seasonal == dup[i]]) - weighted.mean(mu, 
+                                                                          areas[dat$seasonal == dup[i]])^2)
       
-      new.dat[new.dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".max", sep = ""), bio.nm)]] <-
-        max(dat[dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".max", sep = ""), bio.nm)]])
+      new.dat[new.dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".max", sep = ""), bio.nm)]] <-
+        max(dat[dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".max", sep = ""), bio.nm)]])
       
-      new.dat[new.dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".min", sep = ""), bio.nm)]] <-
-        min(dat[dat$SEASONAL == dup[i], bio.nm[grep(paste(bios[j],".min", sep = ""), bio.nm)]])
+      new.dat[new.dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".min", sep = ""), bio.nm)]] <-
+        min(dat[dat$seasonal == dup[i], bio.nm[grep(paste(bios[j],".min", sep = ""), bio.nm)]])
     }}
   
   if(length(nondup) != 0){
     for(j in 1:length(nondup)){
-      new.dat[new.dat$SEASONAL == nondup[j], bio.nm] <- 
-        dat[dat$SEASONAL == nondup[j], bio.nm]}}
+      new.dat[new.dat$seasonal == nondup[j], bio.nm] <- 
+        dat[dat$seasonal == nondup[j], bio.nm]}}
   
   return(new.dat)}
 
-compileSeasonRangeRow <- function(bird.file, df.blank, wd.output, wd.bird, bio.nm, bios){
+compileSeasonRangeRow <- function(spp.file, df.blank, wd.output, wd.bird, bio.nm, bios){
   
   df.row <- df.blank
   
-  spp <- sub(".Rdata", "", bird.file)     
+  spp <- sub(".Rdata", "", spp.file)     
   df.row[,"spp"] <- spp
   
   # Load matched shapefile & range characteristics data
   load(file = paste(wd.output,"Matched Shapefiles/", spp, ".Rdata", sep=""))
   
-  dat <- x@data[x@data$PRESENCE < 3 & x@data$SEASONAL < 5,]
+  dat <- x@data[x@data$presence < 3 & x@data$seasonal < 5,]
   
   if(nrow(dat) == 0 | !"alt.m" %in% names(dat)){next}
   
-  if(any(duplicated(dat$SEASONAL))){
+  if(any(duplicated(dat$seasonal))){
     
-    dat <- aggregateDuplicates(dat, wd.bird, bird.file, bio.nm, bios, wd.output, x)}
+    dat <- aggregateDuplicates(dat, wd.bird, spp.file, bio.nm, bios, wd.output, x)}
   
   for(i in 1:nrow(dat)){
     
-    season <- paste("S",dat$SEASONAL[i], sep = "")
-    df.row[,paste(season, bio.nm, sep = "")] <- dat[dat$SEASONAL[i] , bio.nm]
+    season <- paste("S",dat$seasonal[i], sep = "")
+    df.row[,paste(season, bio.nm, sep = "")] <- dat[dat$seasonal[i] , bio.nm]
   }
   
   load(file = paste(wd.output,"range dat/", spp, ".Rdata", sep=""))
