@@ -2,7 +2,7 @@
 title: "Report 1 - Data Availability"
 author: "Anna Krystalli"
 date: "24 December 2014"
-output: word_document
+output: html_document
 ---
 
 So far all mating system data, supplied by Andras and Gavin, as well as additional ecological etc data supplied by Tamas and the clutch size data published in the PLOS paper (DOI: 10.1371/journal.pbio.0060303) have been compiled onto the master data set. 
@@ -68,7 +68,7 @@ breaks, axis.pos=1, add.axis=TRUE, ...){
 }
 
 
-master <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/Master Data Sheet.csv", stringsAsFactors=FALSE)
+master <- read.csv("~/Google Drive/Sex Roles in Birds Data Project/Outputs/data/Master Data Sheet (initial).csv", stringsAsFactors=FALSE)
 
 var.rem.names <- c("family", "species", "location", "X", "index", "elliott.dat", "ms.dat", "aus_ind_birds", "d.mod_ref", "ref", "ref.D1", "ref.D2", "ref.D4", "ref.D3", "andras.dat")
 

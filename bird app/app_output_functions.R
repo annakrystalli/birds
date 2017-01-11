@@ -88,7 +88,7 @@ widenMaster <- function(vars, species, master, metadata, datSumm = NULL, varSumm
 
  
   
-  wdf <- spread(df.w, key = var, value, convert = T)
+  wdf <- spread(df.w, key = var, value, convert = F)
   
   return(wdf)
   
